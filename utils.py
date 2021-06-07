@@ -1,5 +1,5 @@
 import os
-
+import time
 import cv2
 import numpy as np
 
@@ -34,17 +34,6 @@ def bytes_2_img(byte) -> np.ndarray:
     if img is None:
         raise ValueError('decode bytes to image error \n\'{}\''.format(byte))
     return img
-
-
-def bgr_2_gray(img):
-    b = img[:, :, 0].copy()
-    g = img[:, :, 1].copy()
-    r = img[:, :, 2].copy()
-
-    gray_img = 0.2126 * r + 0.7152 * g + 0.0722 * b
-    gray_img = gray_img.astype(np.uint8)
-
-    return gray_img
 
 
 class auto_increment(object):

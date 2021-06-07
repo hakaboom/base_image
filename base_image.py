@@ -43,11 +43,15 @@ class _image(object):
         elif isinstance(img, bytes):
             self.image_data = bytes_2_img(img)
         elif isinstance(img, np.ndarray):
-            self.image_data = img
+            self.image_data = img.copy()
         elif isinstance(img, cv2.cuda_GpuMat):
             self.image_data = img.clone()
         elif isinstance(img, _image):
-            self.image_data = img.copy()
+            if img.type == 'cpu':
+                self.image_data = img.imread().copy()
+            else:
+                self.image_data = img.download().clone()
+            self.tmp_path = img.path
         else:
             raise ValueError('unknown image, type:{}, image={} '.format(type(img), img))
 
@@ -102,9 +106,9 @@ class _image(object):
         :return: IMAGE
         """
         if self.type == 'cpu':
-            return IMAGE(self.imread(), path=self.path)
+            return IMAGE(self.imread(), self.path)
         else:
-            return IMAGE(self.download(), path=self.path)
+            return IMAGE(self.download(), self.path)
 
     @property
     def path(self):
@@ -204,7 +208,7 @@ class IMAGE(_image):
         :return: 截取的区域
         """
         img = self.imread()
-        height, width = self.shape
+        height, width = self.size
         if isinstance(rect, (list, tuple)) and len(rect) == 4:
             rect = Rect(*rect)
         elif isinstance(rect, Rect):

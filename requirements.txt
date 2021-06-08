@@ -1,0 +1,5 @@
+colorama==0.4.4
+loguru==0.5.3
+numpy==1.20.3
+opencv-python==4.5.2.54
+win32-setctime==1.0.3

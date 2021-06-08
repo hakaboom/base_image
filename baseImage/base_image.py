@@ -1,8 +1,8 @@
 #! usr/bin/python
 # -*- coding:utf-8 -*-
 import cv2
-from coordinate import Rect
-from utils import read_image, bytes_2_img, auto_increment
+from .coordinate import Rect
+from .utils import read_image, bytes_2_img, auto_increment
 import numpy as np
 
 
@@ -60,16 +60,22 @@ class _image(object):
         读取图片数据 (内部会自动转换为cpu格式)
         :return: 图片数据(type: numpy.ndarray)
         """
-        self.transform_cpu()
-        return self.image_data
+        if not self.image_data:
+            raise ValueError('没有存放图片数据')
+        else:
+            self.transform_cpu()
+            return self.image_data
 
     def download(self) -> cv2.cuda_GpuMat:
         """
         读取图片数据 (内部会自动转换为gpu格式)
         :return: 图片数据(type: cuda_GpuMat)
         """
-        self.transform_gpu()
-        return self.image_data
+        if not self.image_data:
+            raise ValueError('没有存放图片数据')
+        else:
+            self.transform_gpu()
+            return self.image_data
 
     def clean_image(self):
         """
@@ -157,6 +163,8 @@ class _image(object):
             return 'cpu'
         elif isinstance(self.image_data, cv2.cuda_GpuMat):
             return 'gpu'
+        else:
+            raise ValueError('没有存放图片数据')
 
 
 class IMAGE(_image):

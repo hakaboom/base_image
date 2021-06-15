@@ -60,22 +60,28 @@ class _image(object):
         读取图片数据 (内部会自动转换为cpu格式)
         :return: 图片数据(type: numpy.ndarray)
         """
-        if not self.image_data:
-            raise ValueError('没有存放图片数据')
+        if self.image_data is not None:
+            if self.type == 'cpu':
+                return self.image_data
+            else:
+                self.transform_cpu()
+                return self.image_data
         else:
-            self.transform_cpu()
-            return self.image_data
+            raise ValueError('没有存放图片数据')
 
     def download(self) -> cv2.cuda_GpuMat:
         """
         读取图片数据 (内部会自动转换为gpu格式)
         :return: 图片数据(type: cuda_GpuMat)
         """
-        if not self.image_data:
-            raise ValueError('没有存放图片数据')
+        if self.image_data is not None:
+            if self.type == 'gpu':
+                return self.image_data
+            else:
+                self.transform_gpu()
+                return self.image_data
         else:
-            self.transform_gpu()
-            return self.image_data
+            raise ValueError('没有存放图片数据')
 
     def clean_image(self):
         """
@@ -288,3 +294,6 @@ class IMAGE(_image):
             return cv2.cvtColor(self.imread(), dst)
         else:
             return cv2.cuda.cvtColor(self.download(), dst)
+
+    def rgb_2_gray(self):
+        return self.cvtColor(cv2.COLOR_BGR2GRAY)

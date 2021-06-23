@@ -1,8 +1,10 @@
 #! usr/bin/python
 # -*- coding:utf-8 -*-
 import cv2
+
 from .coordinate import Rect
 from .utils import read_image, bytes_2_img, auto_increment
+from .exceptions import NoImageDataError, WriteImageError, TransformError
 import numpy as np
 
 
@@ -26,8 +28,6 @@ class _image(object):
         :param path: 写入的文件路径
         :return: None
         """
-        if self.imread() is None:
-            raise ValueError('没有缓存图片')
         path = path or self.path
         cv2.imwrite(path, self.imread())
 
@@ -38,7 +38,7 @@ class _image(object):
         :param flags: 写入图片的cv flags
         :return: None
         """
-        if type(img) == str:
+        if isinstance(img, str):
             self.image_data = read_image('{}{}'.format(self.tmp_path, img), flags)
         elif isinstance(img, bytes):
             self.image_data = bytes_2_img(img)
@@ -47,13 +47,9 @@ class _image(object):
         elif isinstance(img, cv2.cuda_GpuMat):
             self.image_data = img.clone()
         elif isinstance(img, _image):
-            if img.type == 'cpu':
-                self.image_data = img.imread().copy()
-            else:
-                self.image_data = img.download().clone()
-            self.tmp_path = img.path
+            raise TypeError('Please use the clone function')
         else:
-            raise ValueError('unknown image, type:{}, image={} '.format(type(img), img))
+            raise WriteImageError('Unknown params, type:{}, img={} '.format(type(img), img))
 
     def imread(self) -> np.ndarray:
         """
@@ -67,7 +63,7 @@ class _image(object):
                 self.transform_cpu()
                 return self.image_data
         else:
-            raise ValueError('没有存放图片数据')
+            raise NoImageDataError('No Image Data in variable')
 
     def download(self) -> cv2.cuda_GpuMat:
         """
@@ -81,7 +77,7 @@ class _image(object):
                 self.transform_gpu()
                 return self.image_data
         else:
-            raise ValueError('没有存放图片数据')
+            raise NoImageDataError('No Image Data in variable')
 
     def clean_image(self):
         """
@@ -143,7 +139,7 @@ class _image(object):
         elif isinstance(img, cv2.cuda_GpuMat):
             pass
         else:
-            raise TypeError('transform Error, img type={}'.format(type(img)))
+            raise TransformError('transform Error, img type={}'.format(type(img)))
 
     def transform_cpu(self):
         """
@@ -157,7 +153,7 @@ class _image(object):
         elif isinstance(img, np.ndarray):
             pass
         else:
-            raise TypeError('transform Error, img type={}'.format(type(img)))
+            raise TransformError('transform Error, img type={}'.format(type(img)))
 
     @property
     def type(self):
@@ -169,8 +165,6 @@ class _image(object):
             return 'cpu'
         elif isinstance(self.image_data, cv2.cuda_GpuMat):
             return 'gpu'
-        else:
-            raise ValueError('没有存放图片数据')
 
 
 class IMAGE(_image):
@@ -185,8 +179,6 @@ class IMAGE(_image):
         title = str(title or self.SHOW_INDEX())
         cv2.namedWindow(title, cv2.WINDOW_KEEPRATIO)
         cv2.imshow(title, self.imread())
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
 
     def rotate(self, angle: int = 90, clockwise: bool = True):
         """

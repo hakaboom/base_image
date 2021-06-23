@@ -6,6 +6,22 @@
 """
 from typing import Union
 from loguru import logger
+from pydantic import BaseModel
+
+
+class display_type(BaseModel):
+    """
+        top, bottom为上下黑边, left和right为左右黑边, widht为宽, height为高
+        width需要大于height
+    """
+    width: int
+    height: int
+    top = 0
+    bottom = 0
+    left = 0
+    right = 0
+    x = 0
+    y = 0
 
 
 class Point(object):
@@ -253,4 +269,76 @@ class Anchor_transform(object):
         """锚点右下"""
         x = cur.x - ((dev.x-x)*mainPoint_scale['x']) + cur.left
         y = cur.y - ((dev.y-y)*mainPoint_scale['y']) + cur.top
+        return x, y
+
+class Anchor(object):
+    def __init__(self, dev: dict, cur: dict, orientation: int):
+        dev = display_type(**dev)
+        cur = display_type(**cur)
+        self.dev, self.cur = dev, cur
+
+        if orientation == 1 or orientation == 2:
+            dev_x = dev.width - dev.left - dev.right
+            dev_y = dev.height - dev.top - dev.bottom
+            cur_x = cur.width - cur.left - cur.right
+            cur_y = cur.height - cur.top - cur.bottom
+        elif orientation == 3:
+            dev_x = dev.height - dev.top - dev.bottom
+            dev_y = dev.width - dev.left - dev.right
+            cur_x = cur.height - cur.top - cur.bottom
+            cur_y = cur.width - cur.left - cur.right
+        else:
+            raise ValueError('没有定义orientation')
+        dev.x, dev.y = dev_x, dev_y
+        cur.x, cur.y = cur_x, cur_y
+
+        scale_x = cur_x / dev_x
+        scale_y = cur_y / dev_y
+        # mainPoint_scale_mode x,y:'width','height'
+        self.mainPoint_scale = {
+            'x': scale_x,
+            'y': scale_y,
+        }
+        #
+        self.appurtenant_scale = {
+            'x': scale_x,
+            'y': scale_y,
+        }
+
+    def point(self, x: int, y: int, anchor_mode: str = 'Middle', anchor_x: int = 0, anchor_y: int = 0):
+        point = Point(x=x, y=y, anchor_mode=anchor_mode, anchor_x=anchor_x, anchor_y=anchor_y)
+        point.x, point.y = self.transform(point)
+        return point
+
+    def size(self, width: int, height: int):
+        size = Size(width=width, height=height)
+        size.width, size.height = self.transform(size)
+        return size
+
+    def transform(self, args: Union[Point, Size]):
+        if isinstance(args, Point):
+            # 计算锚点坐标
+            anchor_x, anchor_y = self._count_anchor_point(args)
+            # 计算从属点坐标
+            x, y = self._count_appurtenant_point(args, anchor_x, anchor_y)
+            return x, y
+        elif isinstance(args, Size):
+            width = args.width * self.mainPoint_scale['x']
+            height = args.height * self.mainPoint_scale['y']
+            return width, height
+        else:
+            raise ValueError('转换未知的类型: {}'.format(args))
+
+    def _count_appurtenant_point(self, point, anchor_x, anchor_y):
+        """计算锚点从属点坐标"""
+        x = anchor_x + (point.x - point.anchor_x)*self.appurtenant_scale['x']
+        y = anchor_y + (point.y - point.anchor_y)*self.appurtenant_scale['y']
+        return x, y
+
+    def _count_anchor_point(self, point):
+        """计算锚点坐标"""
+        anchor_fun = getattr(Anchor_transform, point.anchor_mode)
+        x = point.anchor_x - self.dev.left
+        y = point.anchor_y - self.dev.top
+        x, y = anchor_fun(x, y, self.dev, self.cur, self.mainPoint_scale)
         return x, y

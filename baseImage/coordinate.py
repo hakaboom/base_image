@@ -35,13 +35,15 @@ class Point(object):
         Point.y :y坐标
         支持 +,-,*,/,==操作
     """
-    def __init__(self, x: int, y: int,
+    def __init__(self, x: Union[int, float], y: Union[int, float],
                  anchor_mode: str = 'Middle', anchor_x: int = 0, anchor_y: int = 0):
         """
         构建一个点
         :param x: x轴坐标
         :param y: y轴坐标
-        :param kwargs:
+        :param anchor_mode: 锚点模式
+        :param anchor_x: 锚点x轴坐标
+        :param anchor_y: 锚点y轴坐标
         """
         self.x = x
         self.y = y
@@ -95,12 +97,12 @@ class Size(object):
         Size.height :Size的高
         支持 +,-,*,/,==操作
     """
-    def __init__(self, width: int, height: int):
+    def __init__(self, width: Union[float, int], height: Union[int, float]):
         self.width = width
         self.height = height
 
     def __str__(self):
-        return '<Size [{} x {}]>'.format(self.width,self.height)
+        return '<Size [{} x {}]>'.format(self.width, self.height)
 
     def __add__(self, other):
         if type(other) == Size:
@@ -163,7 +165,7 @@ Size.INVALID = Size(-1, -1)
 
 
 class Rect(object):
-    def __init__(self, x, y, width, height):
+    def __init__(self, x: Union[float, int], y: Union[float, int], width: Union[float, int], height: Union[float, int]):
         self.x = x
         self.y = y
         self.width = width
@@ -270,6 +272,7 @@ class Anchor_transform(object):
         x = cur.x - ((dev.x-x)*mainPoint_scale['x']) + cur.left
         y = cur.y - ((dev.y-y)*mainPoint_scale['y']) + cur.top
         return x, y
+
 
 class Anchor(object):
     def __init__(self, dev: dict, cur: dict, orientation: int):

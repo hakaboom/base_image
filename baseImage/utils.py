@@ -1,3 +1,4 @@
+import base64
 import os
 import time
 import cv2
@@ -36,7 +37,7 @@ def bytes_2_img(byte) -> np.ndarray:
     """bytes转换成cv2可读取格式"""
     img = cv2.imdecode(np.array(bytearray(byte)), 1)
     if img is None:
-        raise ValueError('decode bytes to image error, param=\n\'{}\''.format(byte))
+        raise ValueError('decode bytes to image error')
 
     return img
 

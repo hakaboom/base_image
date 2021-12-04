@@ -1,6 +1,7 @@
 #! usr/bin/python
 # -*- coding:utf-8 -*-
 import cv2
+import base64
 
 from .coordinate import Rect
 from .utils import read_image, bytes_2_img, auto_increment
@@ -60,8 +61,7 @@ class _image(object):
             if self.type == 'cpu':
                 return self.image_data
             else:
-                self.transform_cpu()
-                return self.image_data
+                return self.image_data.download()
         else:
             raise NoImageDataError('No Image Data in variable')
 
@@ -74,8 +74,9 @@ class _image(object):
             if self.type == 'gpu':
                 return self.image_data
             else:
-                self.transform_gpu()
-                return self.image_data
+                img = cv2.cuda_GpuMat()
+                img.upload(self.imread())
+                return img
         else:
             raise NoImageDataError('No Image Data in variable')
 
@@ -114,9 +115,9 @@ class _image(object):
         :return: IMAGE
         """
         if self.type == 'cpu':
-            return IMAGE(self.imread(), self.path)
+            return Image(self.imread(), self.path)
         else:
-            return IMAGE(self.download(), self.path)
+            return Image(self.download(), self.path)
 
     @property
     def path(self):
@@ -167,7 +168,7 @@ class _image(object):
             return 'gpu'
 
 
-class IMAGE(_image):
+class Image(_image):
     SHOW_INDEX = auto_increment()
 
     def imshow(self, title: str = None):
@@ -226,7 +227,7 @@ class IMAGE(_image):
         # 获取在图像中的实际有效区域：
         x_min, y_min = int(rect.tl.x), int(rect.tl.y)
         x_max, y_max = int(rect.br.x), int(rect.br.y)
-        return IMAGE(img[y_min:y_max, x_min:x_max])
+        return Image(img[y_min:y_max, x_min:x_max])
 
     def binarization(self):
         """
@@ -236,13 +237,13 @@ class IMAGE(_image):
         gray_img = self.cvtColor(dst=cv2.COLOR_BGR2GRAY)
         if self.type == 'cpu':
             retval, dst = cv2.threshold(gray_img, 0, 255, cv2.THRESH_OTSU)
-            return IMAGE(dst)
+            return Image(dst)
         else:
             # cuda.threshold 不支持大津法
             retval, dst = cv2.threshold(gray_img.download(), 0, 255, cv2.THRESH_OTSU)
             img = cv2.cuda_GpuMat()
             img.upload(dst)
-            return IMAGE(img)
+            return Image(img)
 
     def rectangle(self, rect: Rect):
         """

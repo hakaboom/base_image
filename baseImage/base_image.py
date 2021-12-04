@@ -269,12 +269,13 @@ class Image(_image):
         self.imwrite(img)
         return self
 
-    def cv2_to_base64(self):
+    def cv2_to_base64(self) -> bytes:
         """
         将图片数据转换为base64格式
         :return: base64格式的图片数据
         """
-        data = cv2.imencode('.png', self.imread())
+        data = cv2.imencode('.png', self.imread())[1].tobytes()
+        data = base64.b64encode(data)
         return data
 
     def cvtColor(self, dst):

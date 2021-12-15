@@ -4,6 +4,18 @@ from setuptools import setup
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
+
+def install_requires():
+    try:
+        import cv2
+        return None
+    except ModuleNotFoundError:
+        return [
+            'numpy>=1.21.4',
+            'opencv-python>=4.5.4.60'
+        ]
+
+
 setup(
     name='baseImage',
     version='1.0.9',
@@ -15,10 +27,7 @@ setup(
     long_description_content_type="text/markdown",
     url='https://github.com/hakaboom/base_image',
     packages=['baseImage'],
-    install_requires=[
-        'numpy>=1.21.4',
-        'opencv-python>=4.5.4.60'
-    ],
+    install_requires=install_requires(),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",

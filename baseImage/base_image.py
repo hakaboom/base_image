@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*-
 import cv2
 import base64
+from typing import Tuple
 
 from .coordinate import Rect
 from .utils import read_image, bytes_2_img, auto_increment
@@ -245,15 +246,17 @@ class Image(_image):
             img.upload(dst)
             return Image(img)
 
-    def rectangle(self, rect: Rect):
+    def rectangle(self, rect: Rect, color: Tuple[int, int, int] = (0, 255, 0), thickness: int = 1):
         """
         在图像上画出矩形
         :param rect: 需要截图的范围,可以是Rect/[x,y,width,height]/(x,y,width,height)
+        :param color: 表示矩形边框的颜色
+        :param thickness: 形边框的厚度
         :return: None
         """
         pt1 = rect.tl
         pt2 = rect.br
-        cv2.rectangle(self.imread(), (pt1.x, pt1.y), (pt2.x, pt2.y), (0, 255, 0), 2)
+        cv2.rectangle(self.imread(), (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
 
     def resize(self, w, h):
         """

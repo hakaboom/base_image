@@ -12,7 +12,8 @@ def install_requires():
     except ModuleNotFoundError:
         return [
             'numpy>=1.21.4',
-            'opencv-python>=4.5.4.60'
+            'opencv-python>=4.5.4.60',
+            'pydantic'
         ]
 
 

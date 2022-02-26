@@ -6,6 +6,7 @@
 """
 import logging
 from typing import Union
+from pydantic import BaseModel
 
 
 class Point(object):
@@ -156,7 +157,7 @@ class Rect(object):
         self.height = height
 
     def __str__(self):
-        return '<Rect [Point({}, {}), Size[{}, {}]]'.format(
+        return '<Rect [Point({:.1f}, {:.1f}), Size[{:.1f}, {:.1f}]]'.format(
             self.x, self.y, self.width, self.height)
 
     @property
@@ -258,8 +259,30 @@ class Anchor_transform(object):
         return x, y
 
 
+class screen_display_type(BaseModel):
+    """
+        top, bottom为上下黑边, left和right为左右黑边, widht为宽, height为高
+        width需要大于height
+    """
+    width: int
+    height: int
+    top = 0
+    bottom = 0
+    left = 0
+    right = 0
+    x = 0
+    y = 0
+
+
+class scale_mode_type(BaseModel):
+    x = 'height'
+    y = 'height'
+
+
 class Anchor(object):
-    def __init__(self, dev: dict, cur: dict, orientation: int):
+    def __init__(self, dev: screen_display_type, cur: screen_display_type,
+                 orientation: int, mainPoint_scale_mode: scale_mode_type = scale_mode_type(),
+                 appurtenant_scale_mode: scale_mode_type = scale_mode_type()):
         """
         dev/cur 结构 [
             width: int
@@ -274,45 +297,44 @@ class Anchor(object):
         width需要大于height
 
         """
-        def check_param(d: dict):
-            return dict(
-                width=d.get('width'),
-                height=d.get('height'),
-                top=d.get('top', 0),
-                bottom=d.get('bottom', 0),
-                left=d.get('left', 0),
-                right=d.get('right', 0),
-            )
+        self.dev, self.cur = dev, cur
 
-        self.dev = check_param(dev)
-        self.cur = check_param(cur)
-
+        # 根据屏幕方向计算黑边影响
         if orientation == 1 or orientation == 2:
-            dev_x = dev['width'] - dev['left'] - dev['right']
-            dev_y = dev['height'] - dev['top'] - dev['bottom']
-            cur_x = cur['width'] - cur['left'] - cur['right']
-            cur_y = cur['height'] - cur['top'] - cur['bottom']
+            dev_x = dev.width - dev.left - dev.right
+            dev_y = dev.height - dev.top - dev.bottom
+            cur_x = cur.width - cur.left - cur.right
+            cur_y = cur.height - cur.top - cur.bottom
         elif orientation == 3:
-            dev_x = dev['height'] - dev['top'] - dev['bottom']
-            dev_y = dev['width'] - dev['left'] - dev['right']
-            cur_x = cur['height'] - cur['top'] - cur['bottom']
-            cur_y = cur['width'] - cur['left'] - cur['right']
+            dev_x = dev.height - dev.top - dev.bottom
+            dev_y = dev.width - dev.left - dev.right
+            cur_x = cur.height - cur.top - cur.bottom
+            cur_y = cur.width - cur.left - cur.right
         else:
             raise ValueError('没有定义orientation')
+
         dev.x, dev.y = dev_x, dev_y
         cur.x, cur.y = cur_x, cur_y
 
+        # 缩放比例
         scale_x = cur_x / dev_x
         scale_y = cur_y / dev_y
+
+        def check_scale_mode(mode: str, scale_x, scale_y):
+            if mode == 'width':
+                return scale_x
+            elif mode == 'height':
+                return scale_y
+
         # mainPoint_scale_mode x,y:'width','height'
         self.mainPoint_scale = {
-            'x': scale_x,
-            'y': scale_y,
+            'x': check_scale_mode(mode=mainPoint_scale_mode.x, scale_x=scale_x, scale_y=scale_y),
+            'y': check_scale_mode(mode=mainPoint_scale_mode.y, scale_x=scale_x, scale_y=scale_y),
         }
-        #
+        # appurtenant_scale_mode x,y:'width','height'
         self.appurtenant_scale = {
-            'x': scale_x,
-            'y': scale_y,
+            'x': check_scale_mode(mode=appurtenant_scale_mode.x, scale_x=scale_x, scale_y=scale_y),
+            'y': check_scale_mode(mode=appurtenant_scale_mode.y, scale_x=scale_x, scale_y=scale_y),
         }
 
     def point(self, x: int, y: int, anchor_mode: str = 'Middle', anchor_x: int = 0, anchor_y: int = 0):

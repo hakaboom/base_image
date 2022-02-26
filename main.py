@@ -4,21 +4,19 @@ twine upload dist/*
 """
 
 import cv2
-from baseImage import Image
+from baseImage import Image, Rect
+from baseImage.coordinate import Anchor, screen_display_type, scale_mode_type
 
-Image('./test.png').binarization().imshow()
+anchor = Anchor(
+    dev=screen_display_type(
+        width=1920, height=1080),
+    cur=screen_display_type(
+        width=2532, height=1170, left=100, right=100
+    ),
+    orientation=1)
 
-img_path = './test.png'
-pkgs = [
-    ('cpu', cv2.gapi.core.cpu.kernels()),
-]
-in_mat = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_RGB2GRAY)
 
-g_in = cv2.GMat()
-g_sc = cv2.GScalar()
-mat, threshold = cv2.gapi.threshold(g_in, g_sc, cv2.THRESH_OTSU)
-comp = cv2.GComputation(cv2.GIn(g_in, g_sc), cv2.GOut(mat, threshold))
-for pkg_name, pkg in pkgs:
-    actual_mat, actual_thresh = comp.apply(cv2.gin(in_mat, (255, 255)), args=cv2.gapi.compile_args(pkg))
-    Image(actual_mat).imshow()
-    cv2.waitKey(0)
+a = Rect.create_by_point_size(point=anchor.point(1562, 154, anchor_mode='Right'),
+                                size=anchor.size(187, 208))
+
+print((2 % 24) * 80 + 40 )

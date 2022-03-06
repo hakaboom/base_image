@@ -2,21 +2,28 @@
 python setup.py sdist
 twine upload dist/*
 """
-
+from baseImage import Image, Rect, Size
+from baseImage.test_base_image import _Image
+import paddle
 import cv2
-from baseImage import Image, Rect
-from baseImage.coordinate import Anchor, screen_display_type, scale_mode_type
-
-anchor = Anchor(
-    dev=screen_display_type(
-        width=1920, height=1080),
-    cur=screen_display_type(
-        width=2532, height=1170, left=100, right=100
-    ),
-    orientation=1)
+import time
+import numpy as np
 
 
-a = Rect.create_by_point_size(point=anchor.point(1562, 154, anchor_mode='Right'),
-                                size=anchor.size(187, 208))
+a = _Image('./test/0.png', place=1)
+a.resize()
+# a.transform_gpu()
+# b = a.download()
+#
+# a.crop_image(Rect(500, 500, 500, 500)).imshow()
+# c = cv2.cuda_GpuMat(b).adjustROI(500, 500, 500, 500)
+#
+# c = Image(c)
+# c.imshow()
+# cv2.waitKey(0)
 
-print((2 % 24) * 80 + 40 )
+# data = a.imread()
+#
+# b =
+#
+# detector = cv2.ORB_create(nfeatures=50000)

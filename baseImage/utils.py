@@ -42,6 +42,29 @@ def bytes_2_img(byte) -> np.ndarray:
     return img
 
 
+def cvType_to_npType(dtype: int, channel):
+    num = dtype - (channel - 1) * 8
+
+    data_type = None
+
+    if num == 0:
+        data_type = np.uint8
+    elif num == 1:
+        data_type = np.int8
+    elif num == 2:
+        data_type = np.uint16
+    elif num == 3:
+        data_type = np.int16
+    elif num == 4:
+        data_type = np.int32
+    elif num == 5:
+        data_type = np.float32
+    elif num == 6:
+        data_type = np.float64
+
+    return data_type
+
+
 class auto_increment(object):
     def __init__(self):
         self._val = 0

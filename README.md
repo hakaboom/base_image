@@ -76,7 +76,7 @@ import cv2
 from baseImage import Image
 
 img = Image(path='./')
-img.imwrite(img='test.png', flags=cv2.IMREAD_COLOR)
+img.imwrite(data='test.png', flags=cv2.IMREAD_COLOR)
 
 # param img: can be fileName/bytes/numpy.ndarry/cuda_GpuMat
 # param flags: 'https://docs.opencv.org/master/d8/d6a/group__imgcodecs__flags.html#ga61d9b0126a3e57d9277ac48327799c80'

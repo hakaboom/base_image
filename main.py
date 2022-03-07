@@ -8,11 +8,12 @@ import paddle
 import cv2
 import time
 import numpy as np
+from typing import Union
 
 from functools import singledispatchmethod
-
+#
 for i in range(3):
-    a = Image('./test/0.png', place=i)
+    a = Image('./test/0.png', place=2)
     print(a.crop(Rect(1, 1, 200, 200)).size)
 # a.resize(1)
 # a.transform_gpu()

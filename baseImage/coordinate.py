@@ -202,7 +202,7 @@ class Rect(object):
         return [self.x, self.y, self.width, self.height]
 
     def totuple(self):
-        return (self.x, self.y, self.width, self.height)
+        return self.x, self.y, self.width, self.height
 
 
 Rect.ZERO = Rect(0, 0, 0, 0)

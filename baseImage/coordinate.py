@@ -198,6 +198,12 @@ class Rect(object):
     def create_by_2_point(tl_point: Point, br_point: Point):
         return Rect(tl_point.x, tl_point.y, br_point.x-tl_point.x, br_point.y-tl_point.y)
 
+    def tolist(self):
+        return [self.x, self.y, self.width, self.height]
+
+    def totuple(self):
+        return (self.x, self.y, self.width, self.height)
+
 
 Rect.ZERO = Rect(0, 0, 0, 0)
 

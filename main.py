@@ -3,15 +3,18 @@ python setup.py sdist
 twine upload dist/*
 """
 from baseImage import Image, Rect, Size
-from baseImage.test_base_image import _Image
+from baseImage.test_base_image import Image
 import paddle
 import cv2
 import time
 import numpy as np
 
+from functools import singledispatchmethod
 
-a = _Image('./test/0.png', place=1)
-a.resize()
+for i in range(3):
+    a = Image('./test/0.png', place=i)
+    print(a.crop(Rect(1, 1, 200, 200)).size)
+# a.resize(1)
 # a.transform_gpu()
 # b = a.download()
 #

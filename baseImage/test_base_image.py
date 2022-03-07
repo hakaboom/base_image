@@ -4,7 +4,7 @@ import base64
 import paddle
 import numpy as np
 
-from typing import Tuple, Union
+from typing import Tuple, Union, Any
 from functools import singledispatchmethod
 
 from .constant import Place
@@ -77,8 +77,9 @@ class _Image(object):
 
         self._data = data
 
-    @staticmethod
-    def dtype_convert(data: Union[str, bytes, np.ndarray, cv2.cuda_GpuMat, cv2.Mat], dtype) -> Union[np.ndarray, cv2.cuda_GpuMat]:
+    @singledispatchmethod
+    @classmethod
+    def dtype_convert(cls, data: Union[np.ndarray, cv2.cuda_GpuMat, cv2.Mat], dtype):
         """
         图片数据类型转换
 
@@ -89,20 +90,27 @@ class _Image(object):
         Returns:
             data(np.ndarray, cv2.cuda_GpuMat): 图片数据
         """
-        if isinstance(data, np.ndarray):
-            if data.dtype != dtype:
-                return data.astype(dtype=dtype)
-        elif isinstance(data, cv2.cuda_GpuMat):
-            data_type = cvType_to_npType(data.type(), channel=data.channels())
-            if data_type != dtype:
-                data.upload(data.download().astype(dtype=dtype))
-        else:
-            raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
-
+        raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
+    
+    @dtype_convert.register(np.ndarray)
+    @dtype_convert.register(cv2.Mat)
+    @classmethod
+    def _(cls, data, dtype):
+        if data.dtype != dtype:
+            data = data.astype(dtype)
         return data
 
-    @staticmethod
-    def place_convert(data: Union[np.ndarray, cv2.cuda_GpuMat, cv2.Mat], place):
+    @dtype_convert.register(cv2.cuda_GpuMat)
+    @classmethod
+    def _(cls, data, dtype):
+        data_type = cvType_to_npType(data.type(), channel=data.channels())
+        if data_type != dtype:
+            data.upload(data.download().astype(dtype=dtype))
+        return data
+
+    @singledispatchmethod
+    @classmethod
+    def place_convert(cls, data: Union[np.ndarray, cv2.cuda_GpuMat, cv2.Mat], place):
         """
         图片数据格式转换
 
@@ -113,26 +121,28 @@ class _Image(object):
         Returns:
             data: 图片数据
         """
-        if place == Place.Ndarray:
-            if isinstance(data, np.ndarray):
-                pass
-            elif isinstance(data, cv2.cuda_GpuMat):
-                data = data.download()
-        elif place == Place.GpuMat:
-            if isinstance(data, np.ndarray):
-                mat = cv2.cuda_GpuMat()
-                mat.upload(data)
-                data = mat
-            elif isinstance(data, cv2.cuda_GpuMat):
-                pass
-        elif place == Place.Mat:
-            if isinstance(data, np.ndarray):
-                pass
-            elif isinstance(data, cv2.cuda_GpuMat):
-                data = cv2.Mat(data.download(), wrap_channels=True)
-        else:
-            raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
+        raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
 
+    @place_convert.register(np.ndarray)
+    @place_convert.register(cv2.Mat)
+    @classmethod
+    def _(cls, data, place):
+        if place in (Place.Ndarray, Place.Mat):
+            pass
+        elif place == Place.GpuMat:
+            mat = cv2.cuda_GpuMat()
+            # TODO: 不支持的dtype
+            mat.upload(data)
+            data = mat
+        return data
+
+    @place_convert.register(cv2.cuda_GpuMat)
+    @classmethod
+    def _(cls, data, place):
+        if place in (Place.Ndarray, Place.Mat):
+            data = data.download()
+        elif place == Place.GpuMat:
+            pass
         return data
 
     @property

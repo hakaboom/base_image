@@ -15,18 +15,18 @@ from .exceptions import NoImageDataError, WriteImageError, TransformError
 
 class _Image(object):
 
-    def __init__(self, data: Union[str, bytes, np.ndarray, cv2.cuda_GpuMat, cv2.Mat],
+    def __init__(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat],
                  read_mode: int = cv2.IMREAD_COLOR, path: str = None,
                  dtype=np.uint8, place=Place.Mat):
         """
         基础构造函数
 
         Args:
-            data(str|bytes|np.ndarray|cv2.cuda_GpuMat): 图片数据
+            data(str|bytes|np.ndarray|cv2.cuda.GpuMat): 图片数据
             read_mode(int): 写入图片的cv flags
             path(str): 默认的图片路径, 在读取和写入图片是起到作用
             dtype: 数据格式
-            place: 数据存放的方式(np.ndarray|cv2.cuda_GpuMat)
+            place: 数据存放的方式(np.ndarray|cv2.cuda.GpuMat)
 
         Returns:
              None
@@ -40,16 +40,16 @@ class _Image(object):
         if data is not None:
             self.write(data, read_mode=self._read_mode, dtype=self._dtype, place=self._place)
 
-    def write(self, data: Union[str, bytes, np.ndarray, cv2.cuda_GpuMat, cv2.Mat],
+    def write(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat],
               read_mode: int = None, dtype=None, place=None):
         """
         写入图片数据
 
         Args:
-            data(str|bytes|np.ndarray|cv2.cuda_GpuMat): 图片数据
+            data(str|bytes|np.ndarray|cv2.cuda.GpuMat): 图片数据
             read_mode(int): 写入图片的cv flags
             dtype: 数据格式(np.float|np.uint8|...)
-            place: 数据存放的方式(np.ndarray|cv2.cuda_GpuMat)
+            place: 数据存放的方式(np.ndarray|cv2.cuda.GpuMat)
 
         Returns:
              None
@@ -67,7 +67,7 @@ class _Image(object):
             else:
                 data = data.copy()
 
-        elif isinstance(data, cv2.cuda_GpuMat):
+        elif isinstance(data, cv2.cuda.GpuMat):
             data = data.clone()
         else:
             raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
@@ -79,7 +79,7 @@ class _Image(object):
 
     @singledispatchmethod
     @classmethod
-    def dtype_convert(cls, data: Union[np.ndarray, cv2.cuda_GpuMat, cv2.Mat], dtype):
+    def dtype_convert(cls, data: Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat], dtype):
         """
         图片数据类型转换
 
@@ -88,7 +88,7 @@ class _Image(object):
             dtype: 目标数据类型
 
         Returns:
-            data(np.ndarray, cv2.cuda_GpuMat): 图片数据
+            data(np.ndarray, cv2.cuda.GpuMat): 图片数据
         """
         raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
     
@@ -100,7 +100,7 @@ class _Image(object):
             data = data.astype(dtype)
         return data
 
-    @dtype_convert.register(cv2.cuda_GpuMat)
+    @dtype_convert.register(cv2.cuda.GpuMat)
     @classmethod
     def _(cls, data, dtype):
         data_type = cvType_to_npType(data.type(), channel=data.channels())
@@ -110,7 +110,7 @@ class _Image(object):
 
     @singledispatchmethod
     @classmethod
-    def place_convert(cls, data: Union[np.ndarray, cv2.cuda_GpuMat, cv2.Mat], place):
+    def place_convert(cls, data: Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat], place):
         """
         图片数据格式转换
 
@@ -130,13 +130,13 @@ class _Image(object):
         if place in (Place.Ndarray, Place.Mat):
             pass
         elif place == Place.GpuMat:
-            mat = cv2.cuda_GpuMat()
+            mat = cv2.cuda.GpuMat()
             # TODO: 不支持的dtype
             mat.upload(data)
             data = mat
         return data
 
-    @place_convert.register(cv2.cuda_GpuMat)
+    @place_convert.register(cv2.cuda.GpuMat)
     @classmethod
     def _(cls, data, place):
         if place in (Place.Ndarray, Place.Mat):
@@ -293,10 +293,25 @@ class Image(_Image):
             x_max, y_max = int(rect.br.x), int(rect.br.y)
             data = self._data[y_min:y_max, x_min:x_max]
         elif self._place == Place.GpuMat:
-            data = cv2.cuda_GpuMat(self.data, rect.totuple())
+            data = cv2.cuda.GpuMat(self.data, rect.totuple())
 
         return self._clone_with_params(data)
 
+    def threshold(self, code=cv2.THRESH_OTSU):
+        """
+        图片二值化
+
+        Args:
+            code: type of the threshold operation
+
+        Returns:
+             Image: 二值化后的图片
+        """
+        if self._place in (Place.Mat, Place.Ndarray):
+            retval, data = cv2.threshold(self.data, 0, 255, cv2.THRESH_OTSU)
+        elif self._place == Place.GpuMat:
+            retval, data = cv2.threshold(self.data.download(), 0, 255, cv2.THRESH_OTSU)
+        return self._clone_with_params(data)
     # def imread(img_path) -> paddle.Tensor:
     #     img = Image(img_path, flags=cv2.IMREAD_UNCHANGED).imread()
     #     return paddle.to_tensor(img.transpose(2, 0, 1)[None, ...], dtype=paddle.float32)

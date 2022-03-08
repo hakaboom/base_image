@@ -14,14 +14,14 @@ import cv2
 from baseImage import Image
 
 Image(img='test.png', flags=cv2.IMREAD_COLOR, path='./')
-# param img: can be fileName/bytes/numpy.ndarry/cuda_GpuMat
+# param img: can be fileName/bytes/numpy.ndarry/cuda.GpuMat
 # param flags: 'https://docs.opencv.org/master/d8/d6a/group__imgcodecs__flags.html#ga61d9b0126a3e57d9277ac48327799c80'
 # param path: Used to set the read path
 ```
 
 2. **transform_gpu**
 
-Transform image Data to cuda_GpuMat
+Transform image Data to cuda.GpuMat
 
 ```Python
 from baseImage import Image
@@ -56,7 +56,7 @@ img.imread()
 
 5. **download**
 
-This returns image Data with cuda_GpuMat
+This returns image Data with cuda.GpuMat
 
 This function will call transform_gpu
 
@@ -78,7 +78,7 @@ from baseImage import Image
 img = Image(path='./')
 img.imwrite(data='test.png', flags=cv2.IMREAD_COLOR)
 
-# param img: can be fileName/bytes/numpy.ndarry/cuda_GpuMat
+# param img: can be fileName/bytes/numpy.ndarry/cuda.GpuMat
 # param flags: 'https://docs.opencv.org/master/d8/d6a/group__imgcodecs__flags.html#ga61d9b0126a3e57d9277ac48327799c80'
 # param path: Used to set the read path
 ```

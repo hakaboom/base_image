@@ -7,7 +7,7 @@ import numpy as np
 from typing import Tuple, Union, Any
 from functools import singledispatchmethod
 
-from .constant import Place
+from .constant import Place, SHOW_INDEX
 from .coordinate import Rect, Size
 from .utils import read_image, bytes_2_img, auto_increment, cvType_to_npType
 from .exceptions import NoImageDataError, WriteImageError, TransformError
@@ -297,7 +297,7 @@ class Image(_Image):
 
         return self._clone_with_params(data)
 
-    def threshold(self, code=cv2.THRESH_OTSU):
+    def threshold(self, code=cv2.THRESH_OTSU) -> _Image:
         """
         图片二值化
 
@@ -308,10 +308,52 @@ class Image(_Image):
              Image: 二值化后的图片
         """
         if self._place in (Place.Mat, Place.Ndarray):
-            retval, data = cv2.threshold(self.data, 0, 255, cv2.THRESH_OTSU)
+            retval, data = cv2.threshold(self.data, 0, 255, code)
         elif self._place == Place.GpuMat:
-            retval, data = cv2.threshold(self.data.download(), 0, 255, cv2.THRESH_OTSU)
+            retval, data = cv2.threshold(self.data.download(), 0, 255, code)
+
         return self._clone_with_params(data)
+
+    def imshow(self, title: str = None, flag: int = cv2.WINDOW_KEEPRATIO):
+        """
+        以GUI显示图片
+
+        Args:
+            title(str): cv窗口的名称, 不填写会自动分配
+            flag(int): 窗口类型
+
+        Returns:
+            None
+        """
+        title = str(title or SHOW_INDEX())
+        cv2.namedWindow(title, flag)
+
+        if self._place in (Place.Mat, Place.Ndarray):
+            cv2.imshow(title, self.data)
+        elif self._place == Place.GpuMat:
+            cv2.imshow(title, self.data.download())
+
+    def rectangle(self, rect: Rect, color: Tuple[int, int, int] = (0, 255, 0), thickness: int = 1):
+        """
+        在图像上画出矩形
+
+        Args:
+            rect(Rect): 需要截图的范围,可以是Rect/[x,y,width,height]/(x,y,width,height)
+            color(tuple): 表示矩形边框的颜色
+            thickness(int): 形边框的厚度
+
+        Returns:
+            None
+        """
+        pt1 = rect.tl
+        pt2 = rect.br
+
+        if self._place in (Place.Mat, Place.Ndarray):
+            return cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
+        elif self._place == Place.GpuMat:
+            cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
+            # np_img = cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
+
     # def imread(img_path) -> paddle.Tensor:
     #     img = Image(img_path, flags=cv2.IMREAD_UNCHANGED).imread()
     #     return paddle.to_tensor(img.transpose(2, 0, 1)[None, ...], dtype=paddle.float32)

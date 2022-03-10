@@ -8,3 +8,4 @@ class Place(object):
     Ndarray = 0
     Mat = 1
     GpuMat = 2
+    UMat = 3

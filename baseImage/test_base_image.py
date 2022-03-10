@@ -9,13 +9,13 @@ from functools import singledispatchmethod
 
 from .constant import Place, SHOW_INDEX
 from .coordinate import Rect, Size
-from .utils import read_image, bytes_2_img, auto_increment, cvType_to_npType
+from .utils import read_image, bytes_2_img, auto_increment, cvType_to_npType, npType_to_cvType
 from .exceptions import NoImageDataError, WriteImageError, TransformError
 
 
 class _Image(object):
 
-    def __init__(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat],
+    def __init__(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat],
                  read_mode: int = cv2.IMREAD_COLOR, path: str = None,
                  dtype=np.uint8, place=Place.Mat):
         """
@@ -40,7 +40,7 @@ class _Image(object):
         if data is not None:
             self.write(data, read_mode=self._read_mode, dtype=self._dtype, place=self._place)
 
-    def write(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat],
+    def write(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat],
               read_mode: int = None, dtype=None, place=None):
         """
         写入图片数据
@@ -64,22 +64,15 @@ class _Image(object):
                 data = read_image(data, flags=read_mode)
             elif isinstance(data, bytes):
                 data = bytes_2_img(data)
-            else:
-                data = data.copy()
 
-        elif isinstance(data, cv2.cuda.GpuMat):
-            data = data.clone()
-        else:
-            raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
-
+        print(type(data))
         data = self.dtype_convert(data, dtype=dtype)
         data = self.place_convert(data, place=place)
 
         self._data = data
 
-    @singledispatchmethod
     @classmethod
-    def dtype_convert(cls, data: Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat], dtype):
+    def dtype_convert(cls, data: Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat], dtype):
         """
         图片数据类型转换
 
@@ -90,23 +83,27 @@ class _Image(object):
         Returns:
             data(np.ndarray, cv2.cuda.GpuMat): 图片数据
         """
-        raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
-    
-    @dtype_convert.register(np.ndarray)
-    @dtype_convert.register(cv2.Mat)
-    @classmethod
-    def _(cls, data, dtype):
-        if data.dtype != dtype:
-            data = data.astype(dtype)
-        return data
+        if isinstance(data, (np.ndarray, cv2.Mat)):
+            if data.dtype != dtype:
+                data = data.astype(dtype=dtype)
+            return data
 
-    @dtype_convert.register(cv2.cuda.GpuMat)
-    @classmethod
-    def _(cls, data, dtype):
-        data_type = cvType_to_npType(data.type(), channel=data.channels())
-        if data_type != dtype:
-            data.upload(data.download().astype(dtype=dtype))
-        return data
+        elif isinstance(data, cv2.UMat):
+            data: np.ndarray = data.get()
+            if data.dtype != dtype:
+                data = data.astype(dtype=dtype)
+            return data
+
+        elif isinstance(data, cv2.cuda.GpuMat):
+            data_type = cvType_to_npType(data.type(), channel=data.channels())
+            if data_type != dtype:
+                cvType = npType_to_cvType(dtype, data.channels())
+                mat = cv2.cuda.GpuMat(data.size(), cvType)
+                data.convertTo(cvType, mat)
+                data = mat
+            return data
+
+        raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
 
     @singledispatchmethod
     @classmethod
@@ -134,7 +131,23 @@ class _Image(object):
             # TODO: 不支持的dtype
             mat.upload(data)
             data = mat
+        elif place == Place.UMat:
+            data = cv2.UMat(data)
         return data
+
+    # @place_convert.register(cv2.UMat)
+    # @classmethod
+    # def _(cls, data, place):
+    #     if place in (Place.Ndarray, Place.Mat):
+    #         data = data.get()
+    #     elif place == Place.GpuMat:
+    #         mat = cv2.cuda.GpuMat()
+    #         # TODO: 不支持的dtype
+    #         mat.upload(data.get())
+    #         data = mat
+    #     elif place == Place.UMat:
+    #         data = cv2.UMat(data)
+    #     return data
 
     @place_convert.register(cv2.cuda.GpuMat)
     @classmethod
@@ -143,6 +156,8 @@ class _Image(object):
             data = data.download()
         elif place == Place.GpuMat:
             pass
+        elif place == Place.UMat:
+            data = cv2.UMat(data.download())
         return data
 
     @property

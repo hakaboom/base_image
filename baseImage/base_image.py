@@ -19,7 +19,7 @@ class Image(object):
         基础构造函数
 
         Args:
-            data(str|bytes|np.ndarray|cv2.cuda.GpuMat): 图片数据
+            data(str|bytes|np.ndarray|cv2.cuda_GpuMat): 图片数据
             flags(int): 写入图片的cv flags
             path(str): 默认的图片路径, 在读取和写入图片是起到作用
 
@@ -48,7 +48,7 @@ class Image(object):
         往缓存中写入图片数据
 
         Args:
-            data(str|bytes|np.ndarray|cv2.cuda.GpuMat): 写入的图片数据
+            data(str|bytes|np.ndarray|cv2.cuda_GpuMat): 写入的图片数据
             flags(int): 写入图片的cv flags
 
         Returns:
@@ -60,7 +60,7 @@ class Image(object):
             self.image_data = bytes_2_img(data)
         elif isinstance(data, np.ndarray):
             self.image_data = data.copy()
-        elif isinstance(data, cv2.cuda.GpuMat):
+        elif isinstance(data, cv2.cuda_GpuMat):
             self.image_data = data.clone()
         elif isinstance(data, Image):
             raise TypeError('Please use the clone function')
@@ -82,18 +82,18 @@ class Image(object):
         else:
             raise NoImageDataError('No Image Data in variable')
 
-    def download(self) -> cv2.cuda.GpuMat:
+    def download(self) -> cv2.cuda_GpuMat:
         """
         读取图片数据
 
         Returns:
-            data(cv2.cuda.GpuMat): 图片数据
+            data(cv2.cuda_GpuMat): 图片数据
         """
         if self.image_data is not None:
             if self.type == 'gpu':
                 return self.image_data
             else:
-                img = cv2.cuda.GpuMat()
+                img = cv2.cuda_GpuMat()
                 img.upload(self.imread())
                 return img
         else:
@@ -165,10 +165,10 @@ class Image(object):
         """
         img = self.image_data
         if isinstance(img, np.ndarray):
-            img = cv2.cuda.GpuMat()
+            img = cv2.cuda_GpuMat()
             img.upload(self.imread())
             self.imwrite(img)
-        elif isinstance(img, cv2.cuda.GpuMat):
+        elif isinstance(img, cv2.cuda_GpuMat):
             pass
         else:
             raise TransformError('transform Error, img type={}'.format(type(img)))
@@ -181,7 +181,7 @@ class Image(object):
             None
         """
         img = self.image_data
-        if isinstance(img, cv2.cuda.GpuMat):
+        if isinstance(img, cv2.cuda_GpuMat):
             img = img.download()
             self.imwrite(img)
         elif isinstance(img, np.ndarray):
@@ -199,7 +199,7 @@ class Image(object):
         """
         if isinstance(self.image_data, np.ndarray):
             return 'cpu'
-        elif isinstance(self.image_data, cv2.cuda.GpuMat):
+        elif isinstance(self.image_data, cv2.cuda_GpuMat):
             return 'gpu'
 
     def imshow(self, title: str = None):
@@ -286,7 +286,7 @@ class Image(object):
         else:
             # cuda.threshold 不支持大津法
             retval, dst = cv2.threshold(gray_img.download(), 0, 255, cv2.THRESH_OTSU)
-            img = cv2.cuda.GpuMat()
+            img = cv2.cuda_GpuMat()
             img.upload(dst)
             return Image(img)
 
@@ -343,7 +343,7 @@ class Image(object):
             dst(int): Destination image
 
         Returns:
-            data(cv2.cuda.GpuMat/np.ndarry)
+            data(cv2.cuda_GpuMat/np.ndarry)
         """
         if self.type == 'cpu':
             return cv2.cvtColor(self.imread(), dst)

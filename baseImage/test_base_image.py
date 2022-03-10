@@ -3,6 +3,7 @@ import cv2
 import base64
 import paddle
 import numpy as np
+from loguru import logger
 
 from typing import Tuple, Union, Any
 from functools import singledispatchmethod
@@ -11,6 +12,12 @@ from .constant import Place, SHOW_INDEX
 from .coordinate import Rect, Size
 from .utils import read_image, bytes_2_img, auto_increment, cvType_to_npType, npType_to_cvType
 from .exceptions import NoImageDataError, WriteImageError, TransformError
+
+
+try:
+    cv2.cuda.GpuMat()
+except AttributeError:
+    cv2.cuda.GpuMat = cv2.cuda_GpuMat
 
 
 class _Image(object):
@@ -59,17 +66,24 @@ class _Image(object):
         dtype = dtype or self._dtype
         place = place or self._place
 
-        if isinstance(data, (np.ndarray, str, bytes)):  # data: np.ndarray
+        # logger.debug(f'输入type={type(data)}, id={id(data)}, place={place}')
+
+        if isinstance(data, (str, bytes)):  # data: np.ndarray
             if isinstance(data, str):
                 data = read_image(data, flags=read_mode)
             elif isinstance(data, bytes):
                 data = bytes_2_img(data)
+        elif isinstance(data, np.ndarray):
+            data = data.copy()
+        elif isinstance(data, cv2.cuda.GpuMat):
+            data = data.clone()
+        elif isinstance(data, cv2.UMat):
+            data = cv2.UMat(data)
 
-        print(type(data))
-        data = self.dtype_convert(data, dtype=dtype)
-        data = self.place_convert(data, place=place)
+        self._data = self.dtype_convert(data, dtype=dtype)
+        self._data = self.place_convert(data, place=place)
 
-        self._data = data
+        logger.debug(f'输出type={type(self._data)}, id={id(self._data)}, place={place}')
 
     @classmethod
     def dtype_convert(cls, data: Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat], dtype):
@@ -83,16 +97,15 @@ class _Image(object):
         Returns:
             data(np.ndarray, cv2.cuda.GpuMat): 图片数据
         """
+
         if isinstance(data, (np.ndarray, cv2.Mat)):
             if data.dtype != dtype:
                 data = data.astype(dtype=dtype)
-            return data
 
         elif isinstance(data, cv2.UMat):
             data: np.ndarray = data.get()
             if data.dtype != dtype:
                 data = data.astype(dtype=dtype)
-            return data
 
         elif isinstance(data, cv2.cuda.GpuMat):
             data_type = cvType_to_npType(data.type(), channel=data.channels())
@@ -101,13 +114,13 @@ class _Image(object):
                 mat = cv2.cuda.GpuMat(data.size(), cvType)
                 data.convertTo(cvType, mat)
                 data = mat
-            return data
+        else:
+            raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
 
-        raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
+        return data
 
-    @singledispatchmethod
     @classmethod
-    def place_convert(cls, data: Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat], place):
+    def place_convert(cls, data: Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat], place):
         """
         图片数据格式转换
 
@@ -118,46 +131,33 @@ class _Image(object):
         Returns:
             data: 图片数据
         """
-        raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
-
-    @place_convert.register(np.ndarray)
-    @place_convert.register(cv2.Mat)
-    @classmethod
-    def _(cls, data, place):
         if place in (Place.Ndarray, Place.Mat):
-            pass
-        elif place == Place.GpuMat:
-            mat = cv2.cuda.GpuMat()
-            # TODO: 不支持的dtype
-            mat.upload(data)
-            data = mat
-        elif place == Place.UMat:
-            data = cv2.UMat(data)
-        return data
+            if isinstance(data, (np.ndarray, cv2.Mat)):
+                pass
+            elif isinstance(data, cv2.cuda.GpuMat):
+                data = data.download()
+            elif isinstance(data, cv2.UMat):
+                data = data.get()
 
-    # @place_convert.register(cv2.UMat)
-    # @classmethod
-    # def _(cls, data, place):
-    #     if place in (Place.Ndarray, Place.Mat):
-    #         data = data.get()
-    #     elif place == Place.GpuMat:
-    #         mat = cv2.cuda.GpuMat()
-    #         # TODO: 不支持的dtype
-    #         mat.upload(data.get())
-    #         data = mat
-    #     elif place == Place.UMat:
-    #         data = cv2.UMat(data)
-    #     return data
-
-    @place_convert.register(cv2.cuda.GpuMat)
-    @classmethod
-    def _(cls, data, place):
-        if place in (Place.Ndarray, Place.Mat):
-            data = data.download()
         elif place == Place.GpuMat:
-            pass
+            if isinstance(data, (np.ndarray, cv2.Mat, cv2.UMat)):
+                if type(data) == cv2.UMat:
+                    data = data.get()
+                mat = cv2.cuda.GpuMat(data.shape[::-1][1:])
+                mat.upload(data)
+                data = mat
+            elif isinstance(data, cv2.cuda.GpuMat):
+                pass
+
         elif place == Place.UMat:
-            data = cv2.UMat(data.download())
+            if isinstance(data, (np.ndarray, cv2.Mat)):
+                data = cv2.UMat(data)
+            elif isinstance(data, cv2.cuda.GpuMat):
+                data = cv2.UMat(data.download())
+            elif isinstance(data, cv2.UMat):
+                pass
+        else:
+            raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
         return data
 
     @property
@@ -172,6 +172,8 @@ class _Image(object):
             return self.data.shape
         elif self._place == Place.GpuMat:
             return self.data.size()[::-1] + (self.data.channels(),)
+        elif self._place == Place.UMat:
+            return self.data.get().shape
 
     @property
     def size(self):
@@ -185,6 +187,8 @@ class _Image(object):
             return self.data.shape[:-1]
         elif self._place == Place.GpuMat:
             return self.data.size()[::-1]
+        elif self._place == Place.UMat:
+            return self.data.get().shape[:-1]
 
     @property
     def channels(self):
@@ -198,6 +202,8 @@ class _Image(object):
             return self.data.shape[2]
         elif self._place == Place.GpuMat:
             return self.data.channels()
+        elif self._place == Place.UMat:
+            return self.data.get().shape[2]
 
     def dtype(self):
         """
@@ -212,6 +218,8 @@ class _Image(object):
     def data(self):
         return self._data
 
+
+class Image(_Image):
     def clone(self):
         """
         拷贝一个新图片对象
@@ -219,7 +227,7 @@ class _Image(object):
         Returns:
             data: 新图片对象
         """
-        return _Image(data=self._data, read_mode=self._read_mode, path=self._path,
+        return Image(data=self._data, read_mode=self._read_mode, path=self._path,
                       dtype=self._dtype, place=self._place)
 
     def _clone_with_params(self, data):
@@ -229,11 +237,9 @@ class _Image(object):
         Returns:
             data: 新图片对象
         """
-        return _Image(data=data, read_mode=self._read_mode, path=self._path,
+        return Image(data=data, read_mode=self._read_mode, path=self._path,
                       dtype=self._dtype, place=self._place)
 
-
-class Image(_Image):
     @singledispatchmethod
     def resize(self, w: int, h: int):
         """
@@ -246,15 +252,17 @@ class Image(_Image):
         Returns:
             Image: 调整大小后的图像
         """
-        if self._place in (Place.Mat, Place.Ndarray):
+        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
             data = cv2.resize(self.data, (int(w), int(h)))
         elif self._place == Place.GpuMat:
             data = cv2.cuda.resize(self.data, (int(w), int(h)))
+        else:
+            raise ValueError()
 
         return self._clone_with_params(data)
 
     @resize.register(Size)
-    def _(self, size: Size) -> _Image:
+    def _(self, size: Size):
         """
         调整图片大小
 
@@ -264,14 +272,16 @@ class Image(_Image):
         Returns:
             Image: 调整大小后的图像
         """
-        if self._place in (Place.Mat, Place.Ndarray):
+        if self._place in (Place.Mat, Place.Ndarray,  Place.UMat):
             data = cv2.resize(self.data, (int(size.width), int(size.height)))
         elif self._place == Place.GpuMat:
             data = cv2.cuda.resize(self.data, (int(size.width), int(size.height)))
+        else:
+            raise ValueError()
 
         return self._clone_with_params(data)
 
-    def cvtColor(self, code) -> _Image:
+    def cvtColor(self, code):
         """
         转换图片颜色空间
 
@@ -282,14 +292,16 @@ class Image(_Image):
         Returns:
             Image: 转换后的新图片
         """
-        if self._place in (Place.Mat, Place.Ndarray):
+        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
             data = cv2.cvtColor(self.data, code)
         elif self._place == Place.GpuMat:
             data = cv2.cuda.cvtColor(self.data, code)
+        else:
+            raise ValueError()
 
         return self._clone_with_params(data)
 
-    def crop(self, rect: Rect) -> _Image:
+    def crop(self, rect: Rect):
         """
         区域范围截图
 
@@ -309,10 +321,15 @@ class Image(_Image):
             data = self._data[y_min:y_max, x_min:x_max]
         elif self._place == Place.GpuMat:
             data = cv2.cuda.GpuMat(self.data, rect.totuple())
+        elif self._place == Place.UMat:
+            data = cv2.UMat(self.data, rect.totuple())
+
+        else:
+            raise ValueError()
 
         return self._clone_with_params(data)
 
-    def threshold(self, code=cv2.THRESH_OTSU) -> _Image:
+    def threshold(self, code=cv2.THRESH_OTSU):
         """
         图片二值化
 
@@ -322,10 +339,12 @@ class Image(_Image):
         Returns:
              Image: 二值化后的图片
         """
-        if self._place in (Place.Mat, Place.Ndarray):
+        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
             retval, data = cv2.threshold(self.data, 0, 255, code)
         elif self._place == Place.GpuMat:
             retval, data = cv2.threshold(self.data.download(), 0, 255, code)
+        else:
+            raise ValueError()
 
         return self._clone_with_params(data)
 
@@ -343,7 +362,7 @@ class Image(_Image):
         title = str(title or SHOW_INDEX())
         cv2.namedWindow(title, flag)
 
-        if self._place in (Place.Mat, Place.Ndarray):
+        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
             cv2.imshow(title, self.data)
         elif self._place == Place.GpuMat:
             cv2.imshow(title, self.data.download())
@@ -363,7 +382,7 @@ class Image(_Image):
         pt1 = rect.tl
         pt2 = rect.br
 
-        if self._place in (Place.Mat, Place.Ndarray):
+        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
             return cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
         elif self._place == Place.GpuMat:
             cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)

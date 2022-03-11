@@ -1,294 +1,372 @@
-#! usr/bin/python
-# -*- coding:utf-8 -*-
+# -*- coding: utf-8 -*-
 import cv2
 import base64
+import paddle
 import numpy as np
+from loguru import logger
 
-from typing import Tuple
+from typing import Tuple, Union, Any
+from functools import singledispatchmethod
 
-from .coordinate import Rect
-from .utils import read_image, bytes_2_img, auto_increment
+from .constant import Place, SHOW_INDEX
+from .coordinate import Rect, Size
+from .utils import read_image, bytes_2_img, auto_increment, cvType_to_npType, npType_to_cvType
 from .exceptions import NoImageDataError, WriteImageError, TransformError
 
 
-class Image(object):
-    SHOW_INDEX = auto_increment()
+try:
+    cv2.cuda.GpuMat()
+except AttributeError:
+    cv2.cuda.GpuMat = cv2.cuda_GpuMat
 
-    def __init__(self, data=None, flags=cv2.IMREAD_COLOR, path=''):
+
+class _Image(object):
+
+    def __init__(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat],
+                 read_mode: int = cv2.IMREAD_COLOR, path: str = None,
+                 dtype=np.uint8, place=Place.Mat):
         """
         基础构造函数
 
         Args:
-            data(str|bytes|np.ndarray|cv2.cuda_GpuMat): 图片数据
-            flags(int): 写入图片的cv flags
+            data(str|bytes|np.ndarray|cv2.cuda.GpuMat): 图片数据
+            read_mode(int): 写入图片的cv flags
             path(str): 默认的图片路径, 在读取和写入图片是起到作用
+            dtype: 数据格式
+            place: 数据存放的方式(np.ndarray|cv2.cuda.GpuMat)
 
         Returns:
              None
         """
         self._path = path
-        self.image_data = None
-        if data is not None:
-            self.imwrite(data, flags)
+        self._data = data
+        self._read_mode = read_mode
+        self._dtype = dtype
+        self._place = place
 
-    def save2path(self, path=None):
+        if data is not None:
+            self.write(data, read_mode=self._read_mode, dtype=self.dtype, place=self._place)
+
+    def write(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat],
+              read_mode: int = None, dtype=None, place=None):
         """
-        写入图片到文件
+        写入图片数据
+
         Args:
-            path(str): 写入的文件路径
+            data(str|bytes|np.ndarray|cv2.cuda.GpuMat): 图片数据
+            read_mode(int): 写入图片的cv flags
+            dtype: 数据格式(np.float|np.uint8|...)
+            place: 数据存放的方式(np.ndarray|cv2.cuda.GpuMat)
 
         Returns:
              None
-        """
-        path = path or self.path
-        cv2.imwrite(path, self.imread())
 
-    def imwrite(self, data, flags: int = cv2.IMREAD_COLOR):
         """
-        往缓存中写入图片数据
+        read_mode = read_mode or self._read_mode
+        dtype = dtype or self.dtype
+        place = place or self._place
+
+        # logger.debug(f'输入type={type(data)}, id={id(data)}, place={place}')
+
+        if isinstance(data, (str, bytes)):  # data: np.ndarray
+            if isinstance(data, str):
+                data = read_image(data, flags=read_mode)
+            elif isinstance(data, bytes):
+                data = bytes_2_img(data)
+        elif isinstance(data, np.ndarray):
+            data = data.copy()
+        elif isinstance(data, cv2.cuda.GpuMat):
+            data = data.clone()
+        elif isinstance(data, cv2.UMat):
+            data = cv2.UMat(data)
+
+        self._data = self.dtype_convert(data, dtype=dtype)
+        self._data = self.place_convert(data, place=place)
+
+        # logger.debug(f'输出type={type(self._data)}, id={id(self._data)}, place={place}')
+
+    @classmethod
+    def dtype_convert(cls, data: Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat], dtype):
+        """
+        图片数据类型转换
 
         Args:
-            data(str|bytes|np.ndarray|cv2.cuda_GpuMat): 写入的图片数据
-            flags(int): 写入图片的cv flags
+            data: 图片数据
+            dtype: 目标数据类型
 
         Returns:
-            None
+            data(np.ndarray, cv2.cuda.GpuMat): 图片数据
         """
-        if isinstance(data, str):
-            self.image_data = read_image('{}{}'.format(self.path, data), flags)
-        elif isinstance(data, bytes):
-            self.image_data = bytes_2_img(data)
-        elif isinstance(data, np.ndarray):
-            self.image_data = data.copy()
-        elif isinstance(data, cv2.cuda_GpuMat):
-            self.image_data = data.clone()
-        elif isinstance(data, Image):
-            raise TypeError('Please use the clone function')
+
+        if isinstance(data, (np.ndarray, cv2.Mat)):
+            if data.dtype != dtype:
+                data = data.astype(dtype=dtype)
+
+        elif isinstance(data, cv2.UMat):
+            data: np.ndarray = data.get()
+            if data.dtype != dtype:
+                data = data.astype(dtype=dtype)
+
+        elif isinstance(data, cv2.cuda.GpuMat):
+            data_type = cvType_to_npType(data.type(), channel=data.channels())
+            if data_type != dtype:
+                cvType = npType_to_cvType(dtype, data.channels())
+                mat = cv2.cuda.GpuMat(data.size(), cvType)
+                data.convertTo(cvType, mat)
+                data = mat
         else:
-            raise WriteImageError('Unknown params, type:{}, data={} '.format(type(data), data))
+            raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
 
-    def imread(self) -> np.ndarray:
+        return data
+
+    @classmethod
+    def place_convert(cls, data: Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat], place):
         """
-        读取图片数据
+        图片数据格式转换
+
+        Args:
+            data: 图片数据
+            place: 目标数据格式
 
         Returns:
-            img(np.ndarray): 图片数据
+            data: 图片数据
         """
-        if self.image_data is not None:
-            if self.type == 'cpu':
-                return self.image_data
-            else:
-                return self.image_data.download()
+        if place in (Place.Ndarray, Place.Mat):
+            if isinstance(data, (np.ndarray, cv2.Mat)):
+                pass
+            elif isinstance(data, cv2.cuda.GpuMat):
+                data = data.download()
+            elif isinstance(data, cv2.UMat):
+                data = data.get()
+
+        elif place == Place.GpuMat:
+            if isinstance(data, (np.ndarray, cv2.Mat, cv2.UMat)):
+                if type(data) == cv2.UMat:
+                    data = data.get()
+                mat = cv2.cuda.GpuMat(data.shape[::-1][1:])
+                mat.upload(data)
+                data = mat
+            elif isinstance(data, cv2.cuda.GpuMat):
+                pass
+
+        elif place == Place.UMat:
+            if isinstance(data, (np.ndarray, cv2.Mat)):
+                data = cv2.UMat(data)
+            elif isinstance(data, cv2.cuda.GpuMat):
+                data = cv2.UMat(data.download())
+            elif isinstance(data, cv2.UMat):
+                pass
         else:
-            raise NoImageDataError('No Image Data in variable')
-
-    def download(self) -> cv2.cuda_GpuMat:
-        """
-        读取图片数据
-
-        Returns:
-            data(cv2.cuda_GpuMat): 图片数据
-        """
-        if self.image_data is not None:
-            if self.type == 'gpu':
-                return self.image_data
-            else:
-                img = cv2.cuda_GpuMat()
-                img.upload(self.imread())
-                return img
-        else:
-            raise NoImageDataError('No Image Data in variable')
-
-    def clean_image(self):
-        """
-        清除缓存
-
-        Returns:
-            None
-        """
-        self.image_data = None
+            raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
+        return data
 
     @property
-    def shape(self) -> tuple:
+    def shape(self) -> Tuple[int, int, int]:
         """
-        获取图片的行、宽、通道数
+        获取图片的长、宽、通道数
 
         Returns:
-            行、宽、通道数
+            shape: (长,宽,通道数)
         """
-        if self.type == 'cpu':
-            return self.imread().shape
-        else:
-            return self.download().size()[::-1] + (self.download().channels(),)
+        if self._place in (Place.Mat, Place.Ndarray):
+            return self.data.shape
+        elif self._place == Place.GpuMat:
+            return self.data.size()[::-1] + (self.data.channels(),)
+        elif self._place == Place.UMat:
+            return self.data.get().shape
 
     @property
-    def size(self) -> tuple:
+    def size(self):
         """
-        获取图片的行、宽
+        获取图片的长、宽
 
         Returns:
-            行、宽
+            shape: (长,宽)
         """
-        if self.type == 'cpu':
-            return self.imread().shape[:-1]
-        else:
-            return self.download().size()[::-1]
+        if self._place in (Place.Mat, Place.Ndarray):
+            return self.data.shape[:-1]
+        elif self._place == Place.GpuMat:
+            return self.data.size()[::-1]
+        elif self._place == Place.UMat:
+            return self.data.get().shape[:-1]
 
+    @property
+    def channels(self):
+        """
+        获取图片的通道数
+
+        Returns:
+            channels: 通道数
+        """
+        if self._place in (Place.Mat, Place.Ndarray):
+            return self.data.shape[2]
+        elif self._place == Place.GpuMat:
+            return self.data.channels()
+        elif self._place == Place.UMat:
+            return self.data.get().shape[2]
+
+    @property
+    def dtype(self):
+        """
+        获取图片的数据类型
+
+        Returns:
+            dtype: 数据类型
+        """
+        return self._dtype
+
+    @property
+    def data(self):
+        return self._data
+
+
+class Image(_Image):
     def clone(self):
         """
-        拷贝一个新的图片对象
+        拷贝一个新图片对象
 
         Returns:
-            image(Image): 新图片
+            data: 新图片对象
         """
-        if self.type == 'cpu':
-            return Image(self.imread(), path=self.path)
+        return Image(data=self._data, read_mode=self._read_mode, path=self._path,
+                     dtype=self.dtype, place=self._place)
+
+    def _clone_with_params(self, data):
+        """
+        拷贝一个新图片对象
+
+        Returns:
+            data: 新图片对象
+        """
+        return Image(data=data, read_mode=self._read_mode, path=self._path,
+                     dtype=self.dtype, place=self._place)
+
+    @singledispatchmethod
+    def resize(self, w: int, h: int):
+        """
+        调整图片大小
+
+        Args:
+            w(int): 需要设定的宽
+            h(int): 需要设定的长
+
+        Returns:
+            Image: 调整大小后的图像
+        """
+        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
+            data = cv2.resize(self.data, (int(w), int(h)))
+        elif self._place == Place.GpuMat:
+            data = cv2.cuda.resize(self.data, (int(w), int(h)))
         else:
-            return Image(self.download(), path=self.path)
+            raise ValueError()
 
-    @property
-    def path(self) -> str:
-        """
-        获取图片的默认存放路径
+        return self._clone_with_params(data)
 
-        Returns:
-            图片路径
+    @resize.register(Size)
+    def _(self, size: Size):
         """
-        return self._path
+        调整图片大小
 
-    def transform_gpu(self):
-        """
-        将图片数据转换为cuda.GpuMat
+        Args:
+            size: 需要设置的长宽
 
         Returns:
-            None
+            Image: 调整大小后的图像
         """
-        img = self.image_data
-        if isinstance(img, np.ndarray):
-            img = cv2.cuda_GpuMat()
-            img.upload(self.imread())
-            self.imwrite(img)
-        elif isinstance(img, cv2.cuda_GpuMat):
-            pass
+        if self._place in (Place.Mat, Place.Ndarray,  Place.UMat):
+            data = cv2.resize(self.data, (int(size.width), int(size.height)))
+        elif self._place == Place.GpuMat:
+            data = cv2.cuda.resize(self.data, (int(size.width), int(size.height)))
         else:
-            raise TransformError('transform Error, img type={}'.format(type(img)))
+            raise ValueError()
 
-    def transform_cpu(self):
+        return self._clone_with_params(data)
+
+    def cvtColor(self, code):
         """
-        将图片数据转换为numpy.ndarray
+        转换图片颜色空间
+
+        Args:
+            code(int): 颜色转换代码
+            https://docs.opencv.org/4.x/d8/d01/group__imgproc__color__conversions.html#ga4e0972be5de079fed4e3a10e24ef5ef0
 
         Returns:
-            None
+            Image: 转换后的新图片
         """
-        img = self.image_data
-        if isinstance(img, cv2.cuda_GpuMat):
-            img = img.download()
-            self.imwrite(img)
-        elif isinstance(img, np.ndarray):
-            pass
+        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
+            data = cv2.cvtColor(self.data, code)
+        elif self._place == Place.GpuMat:
+            data = cv2.cuda.cvtColor(self.data, code)
         else:
-            raise TransformError('transform Error, img type={}'.format(type(img)))
+            raise ValueError()
 
-    @property
-    def type(self) -> str:
+        return self._clone_with_params(data)
+
+    def crop(self, rect: Rect):
         """
-        获取图片数据的类型
+        区域范围截图
+
+        Args:
+            rect: 需要截图的范围
 
         Returns:
-             type(str): cpu/gpu
+             Image: 截取的区域
         """
-        if isinstance(self.image_data, np.ndarray):
-            return 'cpu'
-        elif isinstance(self.image_data, cv2.cuda_GpuMat):
-            return 'gpu'
+        height, width = self.size
+        if not Rect(0, 0, width, height).contains(rect):
+            raise OverflowError('Rect不能超出屏幕 rect={}, tl={}, br={}'.format(rect, rect.tl, rect.br))
 
-    def imshow(self, title: str = None):
+        if self._place in (Place.Mat, Place.Ndarray):
+            x_min, y_min = int(rect.tl.x), int(rect.tl.y)
+            x_max, y_max = int(rect.br.x), int(rect.br.y)
+            data = self._data[y_min:y_max, x_min:x_max]
+        elif self._place == Place.GpuMat:
+            data = cv2.cuda.GpuMat(self.data, rect.totuple())
+        elif self._place == Place.UMat:
+            data = cv2.UMat(self.data, rect.totuple())
+
+        else:
+            raise ValueError()
+
+        return self._clone_with_params(data)
+
+    def threshold(self, code=cv2.THRESH_OTSU):
+        """
+        图片二值化
+
+        Args:
+            code: type of the threshold operation
+
+        Returns:
+             Image: 二值化后的图片
+        """
+        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
+            retval, data = cv2.threshold(self.data, 0, 255, code)
+        elif self._place == Place.GpuMat:
+            retval, data = cv2.threshold(self.data.download(), 0, 255, code)
+        else:
+            raise ValueError()
+
+        return self._clone_with_params(data)
+
+    def imshow(self, title: str = None, flag: int = cv2.WINDOW_KEEPRATIO):
         """
         以GUI显示图片
 
         Args:
             title(str): cv窗口的名称, 不填写会自动分配
+            flag(int): 窗口类型
 
         Returns:
             None
         """
-        title = str(title or self.SHOW_INDEX())
-        cv2.namedWindow(title, cv2.WINDOW_KEEPRATIO)
-        cv2.imshow(title, self.imread())
+        title = str(title or SHOW_INDEX())
+        cv2.namedWindow(title, flag)
 
-    def rotate(self, angle: int = 90, clockwise: bool = True):
-        """
-        旋转图片
-
-        Args:
-            angle(int): 旋转角度, 默认为90
-            clockwise(bool): True-顺时针旋转, False-逆时针旋转
-
-        Returns:
-            return self
-        """
-        img = self.imread()
-        if clockwise:
-            angle = 360 - angle
-        rows, cols, _ = img.shape
-        center = (cols / 2, rows / 2)
-        mask = img.copy()
-        mask[:, :] = 255
-        M = cv2.getRotationMatrix2D(center, angle, 1)
-        top_right = np.array((cols, 0)) - np.array(center)
-        bottom_right = np.array((cols, rows)) - np.array(center)
-        top_right_after_rot = M[0:2, 0:2].dot(top_right)
-        bottom_right_after_rot = M[0:2, 0:2].dot(bottom_right)
-        new_width = max(int(abs(bottom_right_after_rot[0] * 2) + 0.5), int(abs(top_right_after_rot[0] * 2) + 0.5))
-        new_height = max(int(abs(top_right_after_rot[1] * 2) + 0.5), int(abs(bottom_right_after_rot[1] * 2) + 0.5))
-        offset_x, offset_y = (new_width - cols) / 2, (new_height - rows) / 2
-        M[0, 2] += offset_x
-        M[1, 2] += offset_y
-        self.imwrite(cv2.warpAffine(img, M, (new_width, new_height)))
-        return self
-
-    def crop_image(self, rect):
-        """
-        区域范围截图,并将截取的区域构建新的IMAGE
-
-        Args:
-            rect: 需要截图的范围,可以是Rect/[x,y,width,height]/(x,y,width,height)
-
-        Returns:
-             Image: 截取的区域
-        """
-        img = self.imread()
-        height, width = self.size
-        if isinstance(rect, (list, tuple)) and len(rect) == 4:
-            rect = Rect(*rect)
-        elif isinstance(rect, Rect):
-            pass
-        else:
-            raise ValueError('unknown rect: type={}, rect={}'.format(type(rect), rect))
-        if not Rect(0, 0, width, height).contains(rect):
-            raise OverflowError('Rect不能超出屏幕 rect={}, tl={}, br={}'.format(rect, rect.tl, rect.br))
-        # 获取在图像中的实际有效区域：
-        x_min, y_min = int(rect.tl.x), int(rect.tl.y)
-        x_max, y_max = int(rect.br.x), int(rect.br.y)
-        return Image(img[y_min:y_max, x_min:x_max])
-
-    def binarization(self):
-        """
-        使用大津法将图片二值化
-
-        Returns:
-            image(Image): 新图片
-        """
-        gray_img = self.cvtColor(dst=cv2.COLOR_BGR2GRAY)
-        if self.type == 'cpu':
-            retval, dst = cv2.threshold(gray_img, 0, 255, cv2.THRESH_OTSU)
-            return Image(dst)
-        else:
-            # cuda.threshold 不支持大津法
-            retval, dst = cv2.threshold(gray_img.download(), 0, 255, cv2.THRESH_OTSU)
-            img = cv2.cuda_GpuMat()
-            img.upload(dst)
-            return Image(img)
+        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
+            cv2.imshow(title, self.data)
+        elif self._place == Place.GpuMat:
+            cv2.imshow(title, self.data.download())
 
     def rectangle(self, rect: Rect, color: Tuple[int, int, int] = (0, 255, 0), thickness: int = 1):
         """
@@ -304,108 +382,19 @@ class Image(object):
         """
         pt1 = rect.tl
         pt2 = rect.br
-        cv2.rectangle(self.imread(), (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
 
-    def resize(self, w: int, h: int):
-        """
-        调整图片大小
+        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
+            return cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
+        elif self._place == Place.GpuMat:
+            cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
+            # np_img = cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
 
-        Args:
-            w(int): 需要设定的宽
-            h(int): 需要设定的厂
-
-        Returns:
-            self
-        """
-        if self.type == 'cpu':
-            img = cv2.resize(self.imread(), (int(w), int(h)))
-        else:
-            img = cv2.cuda.resize(self.download(), (int(w), int(h)))
-        self.imwrite(img)
-        return self
-
-    def cv2_to_base64(self) -> bytes:
-        """
-        将图片数据转换为base64格式
-
-        Returns:
-            data(bytes):base64格式的图片数据
-        """
-        data = cv2.imencode('.png', self.imread())[1].tobytes()
-        data = base64.b64encode(data)
-        return data
-
-    def cvtColor(self, dst):
-        """
-        转换图片颜色空间
-
-        Args:
-            dst(int): Destination image
-
-        Returns:
-            data(cv2.cuda_GpuMat/np.ndarry)
-        """
-        if self.type == 'cpu':
-            return cv2.cvtColor(self.imread(), dst)
-        else:
-            return cv2.cuda.cvtColor(self.download(), dst)
-
-    def rgb_2_gray(self):
-        return self.cvtColor(cv2.COLOR_BGR2GRAY)
-
-    # paddle
-    def np2tensor(self):
-        """
-        转换ndarray成paddle.Tensor
-
-        Returns:
-            paddle.Tensor
-        """
-        return paddle.to_tensor(self.imread().transpose(2, 0, 1)[None, ...], dtype=paddle.float32)
-
-    @staticmethod
-    def _fspecial_gauss_1d(size, sigma):
-        """
-        Create 1-D gauss kernel
-
-        Args:
-            size (int): the size of gauss kernel
-            sigma (float): sigma of normal distribution
-
-        Returns:
-            paddle.Tensor: 1D kernel (1 x 1 x size)
-        """
-        coords = paddle.arange(size, dtype=paddle.float32)
-        coords -= size // 2
-
-        g = paddle.exp(-(coords ** 2) / (2 * sigma ** 2))
-        g /= g.sum()
-
-        return g.unsqueeze(0).unsqueeze(0)
-
-    def gaussian_filter(self, win=None, win_size=11, win_sigma=1.5):
-        data = self.np2tensor()
-
-        if win is None:
-            win = self._fspecial_gauss_1d(win_size, win_sigma)
-            win = win.tile([data.shape[1]] + [1] * (len(data.shape) - 1))
-
-        assert all([ws == 1 for ws in win.shape[1:-1]]), win.shape
-
-        if len(data.shape) != 4:
-            raise NotImplementedError(data.shape)
-
-        C = data.shape[1]
-        out = data
-        for i, s in enumerate(data.shape[2:]):
-            if s >= win.shape[-1]:
-                perms = list(range(win.ndim))
-                perms[2 + i] = perms[-1]
-                perms[-1] = 2 + i
-                out = paddle.nn.functional.conv2d(out, weight=win.transpose(perms), stride=1, padding=0, groups=C)
-            else:
-                print(
-                    f"Skipping Gaussian Smoothing at dimension 2+{i} for input: {data.shape} and win size: {win.shape[-1]}"
-                )
-
-        return out
+    # def imread(img_path) -> paddle.Tensor:
+    #     img = Image(img_path, flags=cv2.IMREAD_UNCHANGED).imread()
+    #     return paddle.to_tensor(img.transpose(2, 0, 1)[None, ...], dtype=paddle.float32)
+    #
+    #
+    # img1 = imread('./image/0.png')
+    # img2 = imread('./image/0.png')
+    #
+    # ssim(img1, img2, data_range=255)

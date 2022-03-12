@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
 import cv2
-import base64
-import paddle
 import numpy as np
 from loguru import logger
 
-from typing import Tuple, Union, Any
+from typing import Tuple, Union
 from functools import singledispatchmethod
 
 from .constant import Place, SHOW_INDEX
 from .coordinate import Rect, Size
-from .utils import read_image, bytes_2_img, auto_increment, cvType_to_npType, npType_to_cvType
+from .utils import read_image, bytes_2_img, cvType_to_npType, npType_to_cvType
 from .exceptions import NoImageDataError, WriteImageError, TransformError
 
 
@@ -23,22 +21,23 @@ except AttributeError:
 class _Image(object):
 
     def __init__(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat],
-                 read_mode: int = cv2.IMREAD_COLOR, path: str = None,
-                 dtype=np.uint8, place=Place.Mat):
+                 read_mode: int = cv2.IMREAD_COLOR, dtype=np.uint8, place=Place.Mat):
         """
         基础构造函数
 
         Args:
-            data(str|bytes|np.ndarray|cv2.cuda.GpuMat): 图片数据
+            data(str|bytes|np.ndarray|cv2.cuda.GpuMat|cv2.UMat): 图片数据
+                str: 接收一个文件路径,读取该路径的图片数据,转换为ndarray
+                bytes: 接收bytes,转换为ndarray
+                cv2.Mat|cv2.UMat|cv2.cuda.GpuMat: 接收opencv的图片格式
+
             read_mode(int): 写入图片的cv flags
-            path(str): 默认的图片路径, 在读取和写入图片是起到作用
             dtype: 数据格式
             place: 数据存放的方式(np.ndarray|cv2.cuda.GpuMat)
 
         Returns:
              None
         """
-        self._path = path
         self._data = data
         self._read_mode = read_mode
         self._dtype = dtype
@@ -228,8 +227,7 @@ class Image(_Image):
         Returns:
             data: 新图片对象
         """
-        return Image(data=self._data, read_mode=self._read_mode, path=self._path,
-                     dtype=self.dtype, place=self._place)
+        return Image(data=self._data, read_mode=self._read_mode, dtype=self.dtype, place=self._place)
 
     def _clone_with_params(self, data):
         """
@@ -238,8 +236,7 @@ class Image(_Image):
         Returns:
             data: 新图片对象
         """
-        return Image(data=data, read_mode=self._read_mode, path=self._path,
-                     dtype=self.dtype, place=self._place)
+        return Image(data=data, read_mode=self._read_mode, dtype=self.dtype, place=self._place)
 
     @singledispatchmethod
     def resize(self, w: int, h: int):
@@ -258,7 +255,7 @@ class Image(_Image):
         elif self._place == Place.GpuMat:
             data = cv2.cuda.resize(self.data, (int(w), int(h)))
         else:
-            raise ValueError()
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
 
         return self._clone_with_params(data)
 
@@ -278,7 +275,7 @@ class Image(_Image):
         elif self._place == Place.GpuMat:
             data = cv2.cuda.resize(self.data, (int(size.width), int(size.height)))
         else:
-            raise ValueError()
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
 
         return self._clone_with_params(data)
 
@@ -298,7 +295,7 @@ class Image(_Image):
         elif self._place == Place.GpuMat:
             data = cv2.cuda.cvtColor(self.data, code)
         else:
-            raise ValueError()
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
 
         return self._clone_with_params(data)
 
@@ -326,7 +323,7 @@ class Image(_Image):
             data = cv2.UMat(self.data, rect.totuple())
 
         else:
-            raise ValueError()
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
 
         return self._clone_with_params(data)
 
@@ -345,7 +342,32 @@ class Image(_Image):
         elif self._place == Place.GpuMat:
             retval, data = cv2.threshold(self.data.download(), 0, 255, code)
         else:
-            raise ValueError()
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
+
+        return self._clone_with_params(data)
+
+    def rectangle(self, rect: Rect, color: Tuple[int, int, int] = (0, 255, 0), thickness: int = 1, lineType=cv2.LINE_8):
+        """
+        在图像上画出矩形
+
+        Args:
+            rect(Rect): 需要截图的范围
+            color(tuple): 表示矩形边框的颜色
+            thickness(int): 形边框的厚度
+            lineType(int): 线的类型
+
+        Returns:
+             Image: 绘制后的图片
+        """
+        pt1 = rect.tl
+        pt2 = rect.br
+
+        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
+            data = cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
+        elif self._place == Place.GpuMat:
+            data = cv2.rectangle(self.data.download(), (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
+        else:
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
 
         return self._clone_with_params(data)
 
@@ -368,26 +390,6 @@ class Image(_Image):
         elif self._place == Place.GpuMat:
             cv2.imshow(title, self.data.download())
 
-    def rectangle(self, rect: Rect, color: Tuple[int, int, int] = (0, 255, 0), thickness: int = 1):
-        """
-        在图像上画出矩形
-
-        Args:
-            rect(Rect): 需要截图的范围,可以是Rect/[x,y,width,height]/(x,y,width,height)
-            color(tuple): 表示矩形边框的颜色
-            thickness(int): 形边框的厚度
-
-        Returns:
-            None
-        """
-        pt1 = rect.tl
-        pt2 = rect.br
-
-        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
-            return cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
-        elif self._place == Place.GpuMat:
-            cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
-            # np_img = cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
 
     # def imread(img_path) -> paddle.Tensor:
     #     img = Image(img_path, flags=cv2.IMREAD_UNCHANGED).imread()

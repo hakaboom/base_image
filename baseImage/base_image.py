@@ -21,7 +21,7 @@ except AttributeError:
 class _Image(object):
 
     def __init__(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat],
-                 read_mode: int = cv2.IMREAD_COLOR, dtype=np.uint8, place=Place.Mat):
+                 read_mode: int = cv2.IMREAD_COLOR, dtype=np.uint8, place=Place.Mat, clone: bool = True):
         """
         基础构造函数
 
@@ -34,6 +34,7 @@ class _Image(object):
             read_mode(int): 写入图片的cv flags
             dtype: 数据格式
             place: 数据存放的方式(np.ndarray|cv2.cuda.GpuMat)
+            clone(bool): if True图片数据会被copy一份新的, if False则不会拷贝
 
         Returns:
              None
@@ -44,10 +45,10 @@ class _Image(object):
         self._place = place
 
         if data is not None:
-            self.write(data, read_mode=self._read_mode, dtype=self.dtype, place=self._place)
+            self.write(data, read_mode=self._read_mode, dtype=self.dtype, place=self._place, clone=clone)
 
     def write(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat],
-              read_mode: int = None, dtype=None, place=None):
+              read_mode: int = None, dtype=None, place=None, clone=True):
         """
         写入图片数据
 
@@ -56,6 +57,7 @@ class _Image(object):
             read_mode(int): 写入图片的cv flags
             dtype: 数据格式(np.float|np.uint8|...)
             place: 数据存放的方式(np.ndarray|cv2.cuda.GpuMat)
+            clone(bool): if True图片数据会被copy一份新的, if False则不会拷贝
 
         Returns:
              None
@@ -73,17 +75,16 @@ class _Image(object):
             elif isinstance(data, bytes):
                 data = bytes_2_img(data)
         elif isinstance(data, np.ndarray):
-            data = data.copy()
+            data = data.copy() if clone else data
         elif isinstance(data, cv2.cuda.GpuMat):
-            data = data.clone()
+            data = data.clone() if clone else data
         elif isinstance(data, cv2.UMat):
-            data = cv2.UMat(data)
+            data = cv2.UMat(data) if clone else data
 
         self._data = data
         # 先转换类型,再转换数据格式
         self._data = self.place_convert(self.data, place=place)
         self._data = self.dtype_convert(self.data, dtype=dtype)
-
         # logger.debug(f'输出type={type(self._data)}, id={id(self._data)}, place={place}')
 
     @classmethod
@@ -149,7 +150,7 @@ class _Image(object):
 
         elif place == Place.Mat:
             if type(data) == np.ndarray:
-                data = cv2.Mat(data, wrap_channels=2)
+                data = cv2.Mat(data, wrap_channels=2)  # wrap_channels是什么jb玩意
             elif type(data) == cv2.Mat:
                 pass
             elif isinstance(data, cv2.cuda.GpuMat):
@@ -248,14 +249,15 @@ class Image(_Image):
         """
         return Image(data=self._data, read_mode=self._read_mode, dtype=self.dtype, place=self._place)
 
-    def _clone_with_params(self, data):
+    def _clone_with_params(self, data, **kwargs):
         """
         拷贝一个新图片对象
 
         Returns:
             data: 新图片对象
         """
-        return Image(data=data, read_mode=self._read_mode, dtype=self.dtype, place=self._place)
+        clone = kwargs.pop('clone', True)
+        return Image(data=data, read_mode=self._read_mode, dtype=self.dtype, place=self._place, clone=clone)
 
     @singledispatchmethod
     def resize(self, w: int, h: int):
@@ -275,8 +277,7 @@ class Image(_Image):
             data = cv2.cuda.resize(self.data, (int(w), int(h)))
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
-
-        return self._clone_with_params(data)
+        return self._clone_with_params(data, clone=False)
 
     @resize.register(Size)
     def _(self, size: Size):
@@ -289,14 +290,7 @@ class Image(_Image):
         Returns:
             Image: 调整大小后的图像
         """
-        if self._place in (Place.Mat, Place.Ndarray,  Place.UMat):
-            data = cv2.resize(self.data, (int(size.width), int(size.height)))
-        elif self._place == Place.GpuMat:
-            data = cv2.cuda.resize(self.data, (int(size.width), int(size.height)))
-        else:
-            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
-
-        return self._clone_with_params(data)
+        return self.resize(int(size.width), int(size.height))
 
     def cvtColor(self, code):
         """
@@ -316,7 +310,7 @@ class Image(_Image):
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
 
-        return self._clone_with_params(data)
+        return self._clone_with_params(data, clone=False)
 
     def crop(self, rect: Rect):
         """
@@ -335,7 +329,7 @@ class Image(_Image):
         if self._place in (Place.Mat, Place.Ndarray):
             x_min, y_min = int(rect.tl.x), int(rect.tl.y)
             x_max, y_max = int(rect.br.x), int(rect.br.y)
-            data = self._data[y_min:y_max, x_min:x_max]
+            data = self.data.copy()[y_min:y_max, x_min:x_max]
         elif self._place == Place.GpuMat:
             data = cv2.cuda.GpuMat(self.data, rect.totuple())
         elif self._place == Place.UMat:
@@ -344,7 +338,7 @@ class Image(_Image):
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
 
-        return self._clone_with_params(data)
+        return self._clone_with_params(data, clone=False)
 
     def threshold(self, code=cv2.THRESH_OTSU):
         """
@@ -366,7 +360,7 @@ class Image(_Image):
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
 
-        return self._clone_with_params(data)
+        return self._clone_with_params(data, clone=False)
 
     def rectangle(self, rect: Rect, color: Tuple[int, int, int] = (0, 255, 0), thickness: int = 1, lineType=cv2.LINE_8):
         """
@@ -391,7 +385,7 @@ class Image(_Image):
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
 
-        return self._clone_with_params(data)
+        return self._clone_with_params(data, clone=False)
 
     def gaussianBlur(self, size: Tuple[int, int], sigma: Union[int, float]):
         """

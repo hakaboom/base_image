@@ -54,25 +54,27 @@ class TestImage(unittest.TestCase):
     def test_resize(self):
         for place in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
-            img = img.resize(400, 400)
-            self.assertEqual(img.size, (400, 400))
+            new_img = img.resize(400, 400)
+            self.assertEqual(new_img.size, (400, 400))
 
     def test_cvtColor(self):
         for place in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
-            img = img.cvtColor(cv2.COLOR_BGR2RGB)
+            new_img = img.cvtColor(cv2.COLOR_BGR2RGB)
+            self.assertNotEqual(id(img.data), id(new_img.data))
 
     def test_crop(self):
         for place in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             rect = Rect(100, 100, 200, 200)
-            img = img.crop(rect)
-            self.assertEqual(img.size, (rect.size.width, rect.size.height))
+            new_img = img.crop(rect)
+            self.assertEqual(new_img.size, (rect.size.width, rect.size.height))
+            self.assertNotEqual(id(img.data), id(new_img.data))
 
     def test_threshold(self):
         for place in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
-            img = img.cvtColor(cv2.COLOR_BGR2GRAY).threshold()
+            new_img = img.cvtColor(cv2.COLOR_BGR2GRAY).threshold()
             
     def test_rectangle(self):
         for place in self.place_list:

@@ -4,6 +4,7 @@ from baseImage.base_image import Image, Size, Rect
 from baseImage.constant import Place
 import os
 
+import numpy as np
 import cv2
 
 if cv2.cuda.getCudaEnabledDeviceCount() > 0:
@@ -11,22 +12,30 @@ if cv2.cuda.getCudaEnabledDeviceCount() > 0:
 else:
     cuda_flag = False
 
+try:
+    cv2.cuda.GpuMat()
+except AttributeError:
+    cv2.cuda.GpuMat = cv2.cuda_GpuMat
+
 IMAGEDIR = os.path.dirname(os.path.abspath(__file__)) + "/image"
 
 
 class TestImage(unittest.TestCase):
     def setUp(self):
         if cuda_flag:
-            self.place_list = [Place.Ndarray, Place.Mat, Place.UMat, Place.GpuMat]
+            self.place_list = [Place.Ndarray, Place.Mat,  Place.GpuMat, Place.UMat]
+            self.place_type = [np.ndarray, cv2.Mat,  cv2.cuda.GpuMat, cv2.UMat]
         else:
             self.place_list = [Place.Ndarray, Place.Mat, Place.UMat]
+            self.place_type = [np.ndarray, cv2.Mat, cv2.UMat]
 
     def test_create(self):
         for place in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
-            
+
             self.assertIsNotNone(img)
             self.assertIsNotNone(img.data)
+            self.assertIsInstance(img.data, self.place_type[place])
 
     def test_image_clone(self):
         for place in self.place_list:
@@ -46,11 +55,6 @@ class TestImage(unittest.TestCase):
         for place in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             img = img.resize(400, 400)
-            self.assertEqual(img.size, (400, 400))
-
-        for place in self.place_list:
-            img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
-            img = img.resize(Size(400, 400))
             self.assertEqual(img.size, (400, 400))
 
     def test_cvtColor(self):

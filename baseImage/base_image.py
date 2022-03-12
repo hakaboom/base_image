@@ -79,8 +79,10 @@ class _Image(object):
         elif isinstance(data, cv2.UMat):
             data = cv2.UMat(data)
 
-        self._data = self.dtype_convert(data, dtype=dtype)
-        self._data = self.place_convert(data, place=place)
+        self._data = data
+        # 先转换类型,再转换数据格式
+        self._data = self.place_convert(self.data, place=place)
+        self._data = self.dtype_convert(self.data, dtype=dtype)
 
         # logger.debug(f'输出type={type(self._data)}, id={id(self._data)}, place={place}')
 
@@ -97,14 +99,19 @@ class _Image(object):
             data(np.ndarray, cv2.cuda.GpuMat): 图片数据
         """
 
-        if isinstance(data, (np.ndarray, cv2.Mat)):
+        if isinstance(data, cv2.Mat):
+            if data.dtype != dtype:
+                data = data.astype(dtype=dtype)
+
+        elif isinstance(data, np.ndarray):
             if data.dtype != dtype:
                 data = data.astype(dtype=dtype)
 
         elif isinstance(data, cv2.UMat):
-            data: np.ndarray = data.get()
-            if data.dtype != dtype:
-                data = data.astype(dtype=dtype)
+            _data: np.ndarray = data.get()
+            if _data.dtype != dtype:
+                data = _data.astype(dtype=dtype)
+                data = cv2.UMat(data)
 
         elif isinstance(data, cv2.cuda.GpuMat):
             data_type = cvType_to_npType(data.type(), channel=data.channels())
@@ -130,8 +137,20 @@ class _Image(object):
         Returns:
             data: 图片数据
         """
-        if place in (Place.Ndarray, Place.Mat):
-            if isinstance(data, (np.ndarray, cv2.Mat)):
+        if place == Place.Ndarray:
+            if type(data) == np.ndarray:
+                pass
+            elif type(data) == cv2.Mat:
+                data = np.asarray(data)
+            elif isinstance(data, cv2.cuda.GpuMat):
+                data = data.download()
+            elif isinstance(data, cv2.UMat):
+                data = data.get()
+
+        elif place == Place.Mat:
+            if type(data) == np.ndarray:
+                data = cv2.Mat(data, wrap_channels=2)
+            elif type(data) == cv2.Mat:
                 pass
             elif isinstance(data, cv2.cuda.GpuMat):
                 data = data.download()
@@ -337,7 +356,10 @@ class Image(_Image):
         Returns:
              Image: 二值化后的图片
         """
-        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
+        if self._place == Place.Mat:
+            data = cv2.Mat(self.data, wrap_channels=False)
+            retval, data = cv2.threshold(data, 0, 255, code)
+        elif self._place in (Place.Ndarray, Place.UMat):
             retval, data = cv2.threshold(self.data, 0, 255, code)
         elif self._place == Place.GpuMat:
             retval, data = cv2.threshold(self.data.download(), 0, 255, code)
@@ -371,6 +393,33 @@ class Image(_Image):
 
         return self._clone_with_params(data)
 
+    def gaussianBlur(self, size: Tuple[int, int], sigma: Union[int, float]):
+        """
+        使用高斯滤镜模糊图像
+
+        Args:
+            size(tuple): 高斯核大小
+            sigma(int|float): 高斯核标准差
+        Returns:
+             Image: 高斯滤镜模糊图像
+        """
+        # r, c = np.mgrid[0:size:1, 0:size:1]
+        # r -= int((size - 1) / 2)
+        # c -= int((size - 1) / 2)
+        # norm_ = np.power(r, 2.0) + np.power(c, 2.0)
+        # gaussianKernel = np.exp(- norm_ / (2 * sigma))
+        # gaussianKernel /= np.sum(gaussianKernel)
+        #
+        # out = cv2.filter2D(img, cv2.CV_32F, kernel=gaussianKernel)
+        # out = np.array(out, dtype=np.uint8)
+        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
+            return cv2.GaussianBlur(self.data, ksize=size, sigmaX=sigma)
+        elif self._place == Place.GpuMat:
+            pass
+            # cv2.cuda.createGaussianFilter(self.data.download(), 0, 255)
+        else:
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
+
     def imshow(self, title: str = None, flag: int = cv2.WINDOW_KEEPRATIO):
         """
         以GUI显示图片
@@ -385,7 +434,10 @@ class Image(_Image):
         title = str(title or SHOW_INDEX())
         cv2.namedWindow(title, flag)
 
-        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
+        if self._place == Place.Mat:
+            data = cv2.Mat(self.data, wrap_channels=False)
+            cv2.imshow(title, data)
+        elif self._place in (Place.Mat, Place.Ndarray, Place.UMat):
             cv2.imshow(title, self.data)
         elif self._place == Place.GpuMat:
             cv2.imshow(title, self.data.download())

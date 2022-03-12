@@ -2,11 +2,11 @@
 python setup.py sdist
 twine upload dist/*
 """
-from baseImage.base_image import Image
+import cv2
+from baseImage.base_image import Image, Rect
 from baseImage.constant import Place
 
 place_list = [Place.Ndarray, Place.Mat, Place.UMat, Place.GpuMat]
 
 
-img = Image(data='tests/image/0.png', place=1)
-print(img.size == (1037, 1920))
+img = Image(data='tests/image/0.png', place=Place.GpuMat)

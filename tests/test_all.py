@@ -43,7 +43,7 @@ class TestImage(unittest.TestCase):
             for dtype in self.dtype_list:
                 img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place, dtype=dtype)
                 if isinstance(img.data, cv2.cuda_GpuMat):
-                    self.assertEqual(cvType_to_npType(img.data.type(), channel=img.channels), dtype)
+                    self.assertEqual(cvType_to_npType(img.data.type(), channels=img.channels), dtype)
                 elif isinstance(img.data, cv2.UMat):
                     self.assertEqual(img.data.get().dtype, dtype)
                 elif isinstance(img.data, np.ndarray):

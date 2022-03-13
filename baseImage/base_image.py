@@ -66,6 +66,7 @@ class _Image(object):
         read_mode = read_mode or self._read_mode
         dtype = dtype or self.dtype
         place = place or self._place
+
         # logger.debug(f'输入type={type(data)}, id={id(data)}, place={place}')
 
         if not clone:
@@ -89,8 +90,8 @@ class _Image(object):
 
         self._data = data
         # 先转换类型,再转换数据格式
-        self._data = self.place_convert(self.data, place=place)
-        self._data = self.dtype_convert(self.data, dtype=dtype)
+        self.place_convert(place=place)
+        self.dtype_convert(dtype=dtype)
         # logger.debug(f'输出type={type(self._data)}, id={id(self._data)}, place={place}')
 
     @classmethod
@@ -104,18 +105,17 @@ class _Image(object):
             mat = cv2.Mat(data, wrap_channels=True)
         return mat
 
-    @classmethod
-    def dtype_convert(cls, data: Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat], dtype):
+    def dtype_convert(self, dtype):
         """
         图片数据类型转换
 
         Args:
-            data: 图片数据
             dtype: 目标数据类型
 
         Returns:
             data(np.ndarray, cv2.cuda.GpuMat): 图片数据
         """
+        data = self._data
 
         if isinstance(data, cv2.Mat):
             if data.dtype != dtype:
@@ -132,7 +132,7 @@ class _Image(object):
                 data = cv2.UMat(data)
 
         elif isinstance(data, cv2.cuda.GpuMat):
-            data_type = cvType_to_npType(data.type(), channel=data.channels())
+            data_type = cvType_to_npType(data.type(), channels=data.channels())
             if data_type != dtype:
                 cvType = npType_to_cvType(dtype, data.channels())
                 mat = cv2.cuda.GpuMat(data.size(), cvType)
@@ -141,20 +141,21 @@ class _Image(object):
         else:
             raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
 
-        return data
+        self._data = data
+        self._dtype = dtype
 
-    @classmethod
-    def place_convert(cls, data: Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat], place):
+    def place_convert(self, place):
         """
         图片数据格式转换
 
         Args:
-            data: 图片数据
             place: 目标数据格式
 
         Returns:
             data: 图片数据
         """
+        data = self._data
+
         if place == Place.Ndarray:
             if type(data) == np.ndarray:
                 pass
@@ -174,7 +175,7 @@ class _Image(object):
                 data = data.download()
             elif isinstance(data, cv2.UMat):
                 data = data.get()
-            data = cls._create_mat(data, data.shape)
+            data = self._create_mat(data, data.shape)
 
         elif place == Place.GpuMat:
             if isinstance(data, (np.ndarray, cv2.Mat, cv2.UMat)):
@@ -195,7 +196,9 @@ class _Image(object):
                 pass
         else:
             raise ValueError('Unknown data, type:{}, data={} '.format(type(data), data))
-        return data
+
+        self._data = data
+        self._place = place
 
     @property
     def shape(self) -> Tuple[int, int, int]:
@@ -472,7 +475,6 @@ class Image(_Image):
         elif self._place == Place.GpuMat:
             cv2.imshow(title, self.data.download())
 
-
     # def imread(img_path) -> paddle.Tensor:
     #     img = Image(img_path, flags=cv2.IMREAD_UNCHANGED).imread()
     #     return paddle.to_tensor(img.transpose(2, 0, 1)[None, ...], dtype=paddle.float32)
@@ -481,4 +483,4 @@ class Image(_Image):
     # img1 = imread('./image/0.png')
     # img2 = imread('./image/0.png')
     #
-    # ssim(img1, img2, data_range=255)
+    # ssim(img1, img2, data_range=255) v

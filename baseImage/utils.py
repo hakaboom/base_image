@@ -42,7 +42,7 @@ def bytes_2_img(byte) -> np.ndarray:
     return img
 
 
-def npType_to_cvType(dtype: int, channel: int):
+def npType_to_cvType(dtype: int, channels: int):
     if dtype == np.uint8:
         num = 0
     elif dtype == np.int8:
@@ -58,12 +58,12 @@ def npType_to_cvType(dtype: int, channel: int):
     elif dtype == np.float64:
         num = 6
 
-    num = num + (channel - 1) * 8
+    num = num + (channels - 1) * 8
     return num
 
 
-def cvType_to_npType(dtype: int, channel: int):
-    num = dtype - (channel - 1) * 8
+def cvType_to_npType(dtype: int, channels: int):
+    num = dtype - (channels - 1) * 8
 
     data_type = None
 

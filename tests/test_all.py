@@ -56,12 +56,14 @@ class TestImage(unittest.TestCase):
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             new_img = img.resize(400, 400)
             self.assertEqual(new_img.size, (400, 400))
+            self.assertIsInstance(new_img.data, self.place_type[place])
 
     def test_cvtColor(self):
         for place in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             new_img = img.cvtColor(cv2.COLOR_BGR2RGB)
             self.assertNotEqual(id(img.data), id(new_img.data))
+            self.assertIsInstance(new_img.data, self.place_type[place])
 
     def test_crop(self):
         for place in self.place_list:
@@ -70,11 +72,13 @@ class TestImage(unittest.TestCase):
             new_img = img.crop(rect)
             self.assertEqual(new_img.size, (rect.size.width, rect.size.height))
             self.assertNotEqual(id(img.data), id(new_img.data))
+            self.assertIsInstance(new_img.data, self.place_type[place])
 
     def test_threshold(self):
         for place in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             new_img = img.cvtColor(cv2.COLOR_BGR2GRAY).threshold()
+            self.assertIsInstance(new_img.data, self.place_type[place])
             
     def test_rectangle(self):
         for place in self.place_list:

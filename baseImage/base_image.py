@@ -164,13 +164,14 @@ class _Image(object):
 
         elif place == Place.Mat:
             if type(data) == np.ndarray:
-                data = cls._create_mat(data, data.shape)
+                pass
             elif type(data) == cv2.Mat:
                 pass
             elif isinstance(data, cv2.cuda.GpuMat):
                 data = data.download()
             elif isinstance(data, cv2.UMat):
                 data = data.get()
+            data = cls._create_mat(data, data.shape)
 
         elif place == Place.GpuMat:
             if isinstance(data, (np.ndarray, cv2.Mat, cv2.UMat)):

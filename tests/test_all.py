@@ -107,7 +107,7 @@ class TestImage(unittest.TestCase):
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             for code, channels in codes:
                 new_img = img.cvtColor(code)
-                
+
                 self.assertEqual(new_img.channels, channels)
                 self.assertNotEqual(id(img.data), id(new_img.data))
                 self.assertEqual(type(img.data), ptype)  # 判断类型是否一致
@@ -137,6 +137,20 @@ class TestImage(unittest.TestCase):
             img.rectangle(rect=Rect(500, 500, 100, 100), color=(255, 255, 255), thickness=0)
 
             self.assertEqual(type(img.data), ptype)  # 判断类型是否一致
+
+    def test_gaussianBlur(self):
+        for place, ptype in self.place_list:
+            img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
+            new_img = img.gaussianBlur(size=(11, 11), sigma=1.5)
+
+            self.assertNotEqual(id(img.data), id(new_img.data))
+            self.assertEqual(type(img.data), ptype)  # 判断类型是否一致
+
+    def test_split(self):
+        for place, ptype in self.place_list:
+            img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
+            img_bgr = img.split()
+            # 好像没啥东西可以验证
 
 
 if __name__ == '__main__':

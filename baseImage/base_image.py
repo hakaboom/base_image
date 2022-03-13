@@ -385,10 +385,8 @@ class Image(_Image):
         if self._place == Place.Mat:
             _, data = cv2.threshold(self.data, 0, 255, code)  # return: np.ndarray
             data = self._create_mat(data=data, shape=data.shape)
-
         elif self._place in (Place.Ndarray, Place.UMat):
             _, data = cv2.threshold(self.data, 0, 255, code)
-
         elif self._place == Place.GpuMat:
             if code in (cv2.THRESH_OTSU, cv2.THRESH_TRIANGLE):
                 # cuda threshold不支持这两种方法,需要转换
@@ -446,13 +444,22 @@ class Image(_Image):
         #
         # out = cv2.filter2D(img, cv2.CV_32F, kernel=gaussianKernel)
         # out = np.array(out, dtype=np.uint8)
-        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
-            return cv2.GaussianBlur(self.data, ksize=size, sigmaX=sigma)
+
+        if not (size[0] % 2 == 1) or not (size[1] % 2 == 1):
+            raise ValueError('Window size must be odd.')
+
+        if self._place == Place.Mat:
+            data = cv2.GaussianBlur(self.data, ksize=size, sigmaX=sigma, sigmaY=sigma)
+            data = self._create_mat(data=data, shape=data.shape)
+        elif self._place in (Place.Ndarray, Place.UMat):
+            data = cv2.GaussianBlur(self.data, ksize=size, sigmaX=sigma, sigmaY=sigma)
         elif self._place == Place.GpuMat:
-            pass
-            # cv2.cuda.createGaussianFilter(self.data.download(), 0, 255)
+            dtype = self.data.type()
+            gaussian = cv2.cuda.createGaussianFilter(dtype, dtype, ksize=size, sigma1=sigma, sigma2=sigma)
+            data = gaussian.apply(self.data)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
+        return self._clone_with_params(data, clone=False)
 
     def imshow(self, title: str = None, flag: int = cv2.WINDOW_KEEPRATIO):
         """
@@ -474,6 +481,21 @@ class Image(_Image):
             cv2.imshow(title, self.data)
         elif self._place == Place.GpuMat:
             cv2.imshow(title, self.data.download())
+
+    def split(self):
+        """
+        拆分图像通道
+
+        Returns:
+            拆分后的图像数据,不会对数据包装处理
+        """
+        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
+            data = cv2.split(self.data)
+        elif self._place == Place.GpuMat:
+            data = cv2.cuda.split(self.data)
+        else:
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
+        return data
 
     # def imread(img_path) -> paddle.Tensor:
     #     img = Image(img_path, flags=cv2.IMREAD_UNCHANGED).imread()

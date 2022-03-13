@@ -14,5 +14,8 @@ place_list = [(Place.Ndarray, np.ndarray), (Place.Mat, cv2.Mat), (Place.UMat, cv
 dtype_list = [np.uint8, np.int8, np.uint16, np.int16, np.int32, np.float32, np.float64]
 
 
-img = Image(data='tests/image/0.png', place=Place.GpuMat)
-img.dtype_convert(dtype=np.float32)
+img = Image(data='tests/image/0.png', place=Place.Mat)
+img = img.cvtColor(cv2.COLOR_BGR2GRAY)
+a = img.split()
+for n in a:
+    print(type(n))

@@ -14,4 +14,8 @@ place_list = [(Place.Ndarray, np.ndarray), (Place.Mat, cv2.Mat), (Place.UMat, cv
 dtype_list = [np.uint8, np.int8, np.uint16, np.int16, np.int32, np.float32, np.float64]
 
 
-img = Image(data='tests/image/0.png', place=Place.UMat)
+img = Image(data='tests/image/0.png', place=Place.GpuMat)
+img.rectangle(rect=Rect(500, 500, 100, 100), color=(255, 255, 255), thickness=-1)
+
+img.imshow()
+cv2.waitKey()

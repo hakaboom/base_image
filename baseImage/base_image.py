@@ -72,6 +72,9 @@ class _Image(object):
             self._data = data
             return
 
+        if isinstance(data, _Image):
+            data = data.data
+
         if isinstance(data, (str, bytes)):  # data: np.ndarray
             if isinstance(data, str):
                 data = read_image(data, flags=read_mode)
@@ -399,7 +402,7 @@ class Image(_Image):
 
     def rectangle(self, rect: Rect, color: Tuple[int, int, int] = (0, 255, 0), thickness: int = 1, lineType=cv2.LINE_8):
         """
-        在图像上画出矩形
+        在图像上画出矩形, 注!绘制会在原图上进行,不会产生新的图片对象
 
         Args:
             rect(Rect): 需要截图的范围
@@ -408,22 +411,18 @@ class Image(_Image):
             lineType(int): 线的类型
 
         Returns:
-             Image: 绘制后的图片
+             None
         """
         pt1 = rect.tl
         pt2 = rect.br
 
         if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
-            data = cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
+            cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color=color, thickness=thickness, lineType=lineType)
         elif self._place == Place.GpuMat:
-            data = cv2.rectangle(self.data.download(), (pt1.x, pt1.y), (pt2.x, pt2.y), color, thickness)
-            mat = cv2.cuda.GpuMat(data.shape[::-1])
-            mat.upload(data)
-            data = mat
+            data = cv2.rectangle(self.data.download(), (pt1.x, pt1.y), (pt2.x, pt2.y), color=color, thickness=thickness, lineType=lineType)
+            self.data.upload(data)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
-
-        return self._clone_with_params(data, clone=False)
 
     def gaussianBlur(self, size: Tuple[int, int], sigma: Union[int, float]):
         """

@@ -53,10 +53,11 @@ class TestImage(unittest.TestCase):
         for place, _ in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             for new_place, ptype in self.place_list:
-                new_img = Image(img.data, place=new_place)
+                new_img = Image(data=img, place=new_place)
 
                 self.assertIsNotNone(new_img)
                 self.assertIsNotNone(new_img.data)
+                self.assertNotEqual(id(img.data), id(new_img.data))
                 self.assertEqual(type(new_img.data), ptype)  # 判断类型是否一致
 
     def test_get_shape(self):
@@ -70,6 +71,12 @@ class TestImage(unittest.TestCase):
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
 
             self.assertEqual(img.size, (1037, 1920))
+
+    def test_get_dtype(self):
+        for place, ptype in self.place_list:
+            for dtype in self.dtype_list:
+                img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place, dtype=dtype)
+                self.assertEqual(img.dtype, dtype)
 
     def test_image_clone(self):
         for place, ptype in self.place_list:
@@ -88,16 +95,20 @@ class TestImage(unittest.TestCase):
         for place, ptype in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             new_img = img.resize(400, 400)
+
             self.assertEqual(new_img.size, (400, 400))
+            self.assertNotEqual(id(img.data), id(new_img.data))
             self.assertEqual(type(img.data), ptype)  # 判断类型是否一致
 
     def test_cvtColor(self):
+        codes = [(cv2.COLOR_BGR2RGB, 3), (cv2.COLOR_BGR2GRAY, 1), (cv2.COLOR_BGR2HSV, 3)]
+
         for place, ptype in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
-
-            codes = [cv2.COLOR_BGR2RGB, cv2.COLOR_BGR2GRAY, cv2.COLOR_BGR2HSV]
-            for code in codes:
+            for code, channels in codes:
                 new_img = img.cvtColor(code)
+                
+                self.assertEqual(new_img.channels, channels)
                 self.assertNotEqual(id(img.data), id(new_img.data))
                 self.assertEqual(type(img.data), ptype)  # 判断类型是否一致
 
@@ -115,13 +126,17 @@ class TestImage(unittest.TestCase):
         for place, ptype in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             new_img = img.cvtColor(cv2.COLOR_BGR2GRAY).threshold()
+
+            self.assertNotEqual(id(img.data), id(new_img.data))
             self.assertEqual(type(img.data), ptype)  # 判断类型是否一致
             
     def test_rectangle(self):
         for place, ptype in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             img.rectangle(rect=Rect(100, 100, 200, 200))
-            img.rectangle(rect=Rect(100, 100, 200, 200), color=(100, 100, 100), thickness=-2)
+            img.rectangle(rect=Rect(500, 500, 100, 100), color=(255, 255, 255), thickness=0)
+
+            self.assertEqual(type(img.data), ptype)  # 判断类型是否一致
 
 
 if __name__ == '__main__':

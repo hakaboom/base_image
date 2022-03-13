@@ -222,6 +222,7 @@ class _Image(object):
 
     @property
     def size(self):
+        # TODO: 和shape的兼容性还存再问题
         """
         获取图片的长、宽
 
@@ -229,7 +230,7 @@ class _Image(object):
             shape: (长,宽)
         """
         if self._place in (Place.Mat, Place.Ndarray):
-            return self.data.shape[:-1]
+            return self.shape[:-1]
         elif self._place == Place.GpuMat:
             return self.data.size()[::-1]
         elif self._place == Place.UMat:
@@ -425,13 +426,14 @@ class Image(_Image):
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
 
-    def gaussianBlur(self, size: Tuple[int, int], sigma: Union[int, float]):
+    def gaussianBlur(self, size: Tuple[int, int] = (0, 0), sigma: Union[int, float] = 1.5, borderType: int = cv2.BORDER_DEFAULT):
         """
         使用高斯滤镜模糊图像
 
         Args:
             size(tuple): 高斯核大小
             sigma(int|float): 高斯核标准差
+            borderType(int): pixel extrapolation method,
         Returns:
              Image: 高斯滤镜模糊图像
         """
@@ -449,13 +451,14 @@ class Image(_Image):
             raise ValueError('Window size must be odd.')
 
         if self._place == Place.Mat:
-            data = cv2.GaussianBlur(self.data, ksize=size, sigmaX=sigma, sigmaY=sigma)
+            data = cv2.GaussianBlur(self.data, ksize=size, sigmaX=sigma, sigmaY=sigma, borderType=borderType)
             data = self._create_mat(data=data, shape=data.shape)
         elif self._place in (Place.Ndarray, Place.UMat):
-            data = cv2.GaussianBlur(self.data, ksize=size, sigmaX=sigma, sigmaY=sigma)
+            data = cv2.GaussianBlur(self.data, ksize=size, sigmaX=sigma, sigmaY=sigma, borderType=borderType)
         elif self._place == Place.GpuMat:
             dtype = self.data.type()
-            gaussian = cv2.cuda.createGaussianFilter(dtype, dtype, ksize=size, sigma1=sigma, sigma2=sigma)
+            gaussian = cv2.cuda.createGaussianFilter(dtype, dtype, ksize=size, sigma1=sigma, sigma2=sigma,
+                                                     rowBorderMode=borderType, columnBorderMode=borderType)
             data = gaussian.apply(self.data)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
@@ -475,12 +478,14 @@ class Image(_Image):
         title = str(title or SHOW_INDEX())
         cv2.namedWindow(title, flag)
 
-        if self._place == Place.Mat:
-            cv2.imshow(title, self.data)
-        elif self._place in (Place.Mat, Place.Ndarray, Place.UMat):
-            cv2.imshow(title, self.data)
-        elif self._place == Place.GpuMat:
-            cv2.imshow(title, self.data.download())
+        data = self.data
+        if self.dtype != np.uint8:
+            data = Image(data=data, dtype=np.uint8).data
+
+        if isinstance(data, (np.ndarray, cv2.UMat)):
+            cv2.imshow(title, data)
+        elif isinstance(data, cv2.cuda.GpuMat):
+            cv2.imshow(title, data.download())
 
     def split(self):
         """

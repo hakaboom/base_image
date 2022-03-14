@@ -6,6 +6,7 @@ import cv2
 import time
 from baseImage.base_image import Image, Rect
 from baseImage.utils.ssim.paddle import ssim as p_ssim
+from baseImage.utils.ssim.cuda import ssim as c_ssim
 from baseImage.utils.ssim import SSIM
 from baseImage.constant import Place
 
@@ -17,12 +18,14 @@ dtype_list = [np.uint8, np.int8, np.uint16, np.int16, np.int32, np.float32, np.f
 
 
 a = SSIM()
-im1 = Image('tests/image/1.png', dtype=np.float32, place=Place.Ndarray)
-im2 = Image('tests/image/2.png', dtype=np.float32, place=Place.Ndarray)
-a.ssim(im1, im2)
+im1 = Image('tests/image/1.png', dtype=np.float32, place=Place.GpuMat)
+im2 = Image('tests/image/2.png', dtype=np.float32, place=Place.GpuMat)
 
-for i in range(100):
+
+for i in range(1000):
     start = time.time()
     a.ssim(im1, im2)
+    # print(c_ssim(im1, im2))
     print(time.time() - start)
+
 # im2 = Image('tests/image/2.png', dtype=np.float32)

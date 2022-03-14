@@ -69,7 +69,8 @@ def ssim(im1: Image, im2: Image, win_size: int = 11, data_range: int = 255, sigm
     cov_norm = cv2.cuda.GpuMat(_cov_norm)
     C1 = cv2.cuda.GpuMat(_C1)
     C2 = cv2.cuda.GpuMat(_C2)
-
+    print(C1.download())
+    cv2.waitKey(0)
     uxx = Image(data=multiply(im1.data, im1.data), **new_img_args).gaussianBlur(**gaussian_args).data
     uyy = Image(data=multiply(im2.data, im2.data), **new_img_args).gaussianBlur(**gaussian_args).data
     uxy = Image(data=multiply(im1.data, im2.data), **new_img_args).gaussianBlur(**gaussian_args).data

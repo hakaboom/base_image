@@ -222,19 +222,13 @@ class _Image(object):
 
     @property
     def size(self):
-        # TODO: 和shape的兼容性还存再问题
         """
         获取图片的长、宽
 
         Returns:
             shape: (长,宽)
         """
-        if self._place in (Place.Mat, Place.Ndarray):
-            return self.shape[:-1]
-        elif self._place == Place.GpuMat:
-            return self.data.size()[::-1]
-        elif self._place == Place.UMat:
-            return self.data.get().shape[:-1]
+        return self.shape[:-1]
 
     @property
     def channels(self):
@@ -262,6 +256,10 @@ class _Image(object):
         return self._dtype
 
     @property
+    def place(self):
+        return self._place
+
+    @property
     def data(self):
         return self._data
 
@@ -274,7 +272,7 @@ class Image(_Image):
         Returns:
             data: 新图片对象
         """
-        return Image(data=self._data, read_mode=self._read_mode, dtype=self.dtype, place=self._place)
+        return Image(data=self._data, read_mode=self._read_mode, dtype=self.dtype, place=self.place)
 
     def _clone_with_params(self, data, **kwargs):
         """
@@ -284,7 +282,7 @@ class Image(_Image):
             data: 新图片对象
         """
         clone = kwargs.pop('clone', True)
-        return Image(data=data, read_mode=self._read_mode, dtype=self.dtype, place=self._place, clone=clone)
+        return Image(data=data, read_mode=self._read_mode, dtype=self.dtype, place=self.place, clone=clone)
 
     @singledispatchmethod
     def resize(self, w: int, h: int):

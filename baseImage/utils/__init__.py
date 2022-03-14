@@ -4,12 +4,12 @@ import time
 import cv2
 import numpy as np
 
-from .exceptions import ReadImageError
+from baseImage.exceptions import ReadImageError
 
 
-def check_file(fileName: str):
+def check_file(file_name: str):
     """check file in path"""
-    return os.path.isfile('{}'.format(fileName))
+    return os.path.isfile('{}'.format(file_name))
 
 
 def check_image_valid(image):
@@ -85,7 +85,7 @@ def cvType_to_npType(dtype: int, channels: int):
     return data_type
 
 
-class auto_increment(object):
+class AutoIncrement(object):
     def __init__(self):
         self._val = 0
 

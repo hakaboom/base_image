@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from .utils import auto_increment
+from .utils import AutoIncrement
 
-SHOW_INDEX = auto_increment()
+SHOW_INDEX = AutoIncrement()
 
 
 class Place(object):

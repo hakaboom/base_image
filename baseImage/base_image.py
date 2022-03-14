@@ -265,6 +265,11 @@ class _Image(object):
 
 
 class Image(_Image):
+
+    def __init__(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat, _Image],
+                 read_mode: int = cv2.IMREAD_COLOR, dtype=np.uint8, place=Place.Mat, clone: bool = True):
+        super(Image, self).__init__(data=data, read_mode=read_mode, dtype=dtype, place=place, clone=clone)
+
     def clone(self):
         """
         拷贝一个新图片对象
@@ -499,13 +504,3 @@ class Image(_Image):
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
         return data
-
-    # def imread(img_path) -> paddle.Tensor:
-    #     img = Image(img_path, flags=cv2.IMREAD_UNCHANGED).imread()
-    #     return paddle.to_tensor(img.transpose(2, 0, 1)[None, ...], dtype=paddle.float32)
-    #
-    #
-    # img1 = imread('./image/0.png')
-    # img2 = imread('./image/0.png')
-    #
-    # ssim(img1, img2, data_range=255) v

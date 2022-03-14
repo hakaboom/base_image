@@ -101,7 +101,7 @@ def _ssim(X, Y, data_range, win, K=(0.01, 0.03)):
 def ndarray_to_pd(data):
     return paddle.to_tensor(data.transpose(2, 0, 1)[None, ...], dtype=paddle.float32)
 
-
+# TODO: 多图的ssim计算
 def ssim(
     im1: Image, im2: Image, data_range: int = 255,
     win_size: int = 11, sigma: int = 1.5,

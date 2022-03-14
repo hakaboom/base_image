@@ -8,10 +8,10 @@ from baseImage.constant import Place
 
 def ssim(im1: Image, im2: Image, win_size: int = 11, data_range: int = 255, sigma: int = 1.5,
          use_sample_covariance=True):
-    place = im1.place
+
     dtype = im1.dtype
     h, w = im1.shape[:2]
-    new_img_args = {'place': place, 'dtype': dtype}
+    new_img_args = {'place': Place.Ndarray, 'dtype': dtype}
 
     nch = im1.channels
 
@@ -22,7 +22,7 @@ def ssim(im1: Image, im2: Image, win_size: int = 11, data_range: int = 255, sigm
 
         for ch in range(nch):
             result = ssim(im1=Image(im1[ch], **new_img_args), im2=Image(im2[ch], **new_img_args),
-                             win_size=win_size, data_range=data_range, sigma=sigma)
+                          win_size=win_size, data_range=data_range, sigma=sigma)
             mssim[ch] = result
         mssim = mssim.mean()
         return mssim

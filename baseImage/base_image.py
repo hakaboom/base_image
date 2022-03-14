@@ -69,24 +69,31 @@ class _Image(object):
 
         # logger.debug(f'输入type={type(data)}, id={id(data)}, place={place}')
 
-        if not clone:
-            self._data = data
-            return
-
         if isinstance(data, _Image):
             data = data.data
 
+        """
+        这边逻辑我也觉得有点诡异
+        1、当data是字符串或者字节流的时候,转换成np.ndarray
+        2、当data是np.ndarray|cv2.Mat|cv2.cuda.GpuMat|cv2.UMat时
+            if clone: 拷贝一份新的
+            if not clone: 不拷贝
+        3、根据place转换data的类型
+        4、根据dtype转换data的数据类型
+        """
         if isinstance(data, (str, bytes)):  # data: np.ndarray
             if isinstance(data, str):
                 data = read_image(data, flags=read_mode)
             elif isinstance(data, bytes):
                 data = bytes_2_img(data)
-        elif isinstance(data, np.ndarray):
-            data = data.copy()
-        elif isinstance(data, cv2.cuda.GpuMat):
-            data = data.clone()
-        elif isinstance(data, cv2.UMat):
-            data = cv2.UMat(data)
+        else:
+            if clone:
+                if isinstance(data, np.ndarray):
+                    data = data.copy()
+                elif isinstance(data, cv2.cuda.GpuMat):
+                    data = data.clone()
+                elif isinstance(data, cv2.UMat):
+                    data = cv2.UMat(data)
 
         self._data = data
         # 先转换类型,再转换数据格式

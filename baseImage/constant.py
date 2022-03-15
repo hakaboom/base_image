@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from .utils import AutoIncrement
+from .utils.api import AutoIncrement
 
 SHOW_INDEX = AutoIncrement()
 

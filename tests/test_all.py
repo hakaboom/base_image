@@ -2,7 +2,8 @@
 import unittest
 from baseImage.base_image import Image, Size, Rect
 from baseImage.constant import Place
-from baseImage.utils import cvType_to_npType
+from baseImage.utils.api import cvType_to_npType
+from baseImage.utils.ssim import SSIM
 import os
 
 import numpy as np
@@ -151,6 +152,16 @@ class TestImage(unittest.TestCase):
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             img_bgr = img.split()
             # 好像没啥东西可以验证
+
+    def test_ssim(self):
+        for place, ptype in self.place_list:
+            im1 = Image(data=os.path.join(IMAGEDIR, '1.png'), dtype=np.float32, place=place)
+            im2 = Image(data=os.path.join(IMAGEDIR, '2.png'), dtype=np.float32, place=place)
+
+            ssim = SSIM()
+            m = ssim.ssim(im1, im2)
+
+            self.assertIsNotNone(m)
 
 
 if __name__ == '__main__':

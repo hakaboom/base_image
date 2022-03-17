@@ -6,25 +6,28 @@ import cv2
 import time
 import os
 from baseImage.base_image import Image, Rect
-from baseImage.utils.ssim.paddle import ssim as p_ssim
 from baseImage.utils.ssim import SSIM
 from baseImage.constant import Place
+from baseImage.utils.image_diff.ssim_diff import ImageDiff
 
 import numpy as np
 
-path = 'tests/image/test.mp4'
-save_path = 'tests/image/test/'
 
-vc = cv2.VideoCapture(path)
+img1 = Image('tests/image/test1.png', place=Place.GpuMat)
+img2 = Image('tests/image/test2.png', place=Place.GpuMat)
 
-if vc.isOpened():
-    rval, frame = vc.read()
-else:
-    rval = False
-c = 1
-while rval:
-    rval, frame = vc.read()
-    cv2.imwrite(os.path.join(save_path, f'{str(c)}.png'), Image(frame).data)
-    c += 1
-    cv2.waitKey(1)
-vc.release()
+diff = ImageDiff()
+
+cnts = diff.diff(img1, img2)
+imageA = img1.data.download()
+imageB = img2.data.download()
+
+for c in cnts:
+    (x, y, w, h) = cv2.boundingRect(c)
+    cv2.rectangle(imageA, (x, y), (x + w, y + h), (0, 0, 255), 2)
+    cv2.rectangle(imageB, (x, y), (x + w, y + h), (0, 0, 255), 2)
+
+print(len(cnts))
+cv2.imshow("Original", imageA)
+cv2.imshow("Modified", imageB)
+cv2.waitKey(0)

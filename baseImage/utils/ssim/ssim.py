@@ -134,12 +134,8 @@ class SSIM(object):
                     mssim[ch] = result
             mssim = mssim.mean()
             if full:
-                if new_image_args['place'] == Place.GpuMat:
-                    S = operations['cuda']['merge'](S)
-                else:
-                    S = operations['mat']['merge'](S, nch)
-                S = S * self.data_range
-                S = Image(data=S, place=new_image_args['place'], dtype=np.uint8)
+                S = operations['mat']['merge'](S, nch)
+                S = Image(data=S, place=new_image_args['place'], dtype=self.dtype)
                 return mssim, S
             else:
                 return mssim
@@ -190,7 +186,7 @@ class SSIM(object):
             B1 = add(add(pow(ux, 2), pow(uy, 2)), C1)
             B2 = add(add(vx, vy), C2)
             D = multiply(B1, B2)
-            S = divide(multiply(A1, A2), D)
+            S = divide(multiply(A1, A2), D).download()
         else:
             A1 = add(multiply(2, multiply(ux, uy)), C1)
             A2 = add(multiply(2, vxy), C2)
@@ -202,10 +198,10 @@ class SSIM(object):
         pad = (self.win_size - 1) // 2
         r = Rect(pad, pad, (w - (2 * pad)), (h - (2 * pad)))
 
-        mssim = Image(data=S, dtype=np.float64, place=Place.Ndarray).crop(r).data
+        mssim = Image(data=S, dtype=np.float64, place=Place.Ndarray, clone=False).crop(r).data
         mssim = cv2.mean(mssim)[0]
 
         if full:
-            return mssim, S
+            return mssim, S * self.data_range
         else:
             return mssim

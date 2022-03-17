@@ -3,7 +3,7 @@ from baseImage.constant import Place
 
 import cv2
 import numpy as np
-from typing import Union
+from typing import Union, Optional, Tuple
 
 
 operations = {
@@ -13,6 +13,7 @@ operations = {
         'add': cv2.add,
         'pow': cv2.pow,
         'divide': cv2.divide,
+        'merge': cv2.merge,
     },
     'cuda': {
         'multiply': cv2.cuda.multiply,
@@ -20,6 +21,7 @@ operations = {
         'add': cv2.cuda.add,
         'pow': cv2.cuda.pow,
         'divide': cv2.cuda.divide,
+        'merge': cv2.cuda.merge,
     }
 }
 
@@ -35,7 +37,7 @@ class SSIM(object):
             data_range(int): 图片的取值范围 (1.0 or 255)
             sigma(float): 高斯核标准差
             use_sample_covariance: 如果为真，则通过 N-1 而不是 N 归一化
-            resize: 输入图片的缩放大小
+            resize: 输入图片的缩放大小(h, w)
         """
         self.win_size = win_size
         self.data_range = data_range
@@ -91,14 +93,27 @@ class SSIM(object):
         if im1.size != im2.size:
             raise ValueError('图片通道数量大小一致, im1:{}, im2:{}'.format(im1.size, im2.size))
 
-    def ssim(self, im1: Image, im2: Image):
+    def ssim(self, im1: Image, im2: Image, full: bool = False) -> Tuple[float, Optional[Image]]:
+        """
+        计算两张图片的相似度
+
+        Args:
+            im1: 图片1
+            im2: 图片2
+            full: if True 还返回完整的结构相似性图像。
+
+        Returns:
+            mssim(float): 结构相似度
+            S(Image): if full==True 完整的结构相似性图像。
+        """
         self._image_check(im1=im1, im2=im2)
-        im1 = im1.resize(*self.resize)
-        im2 = im2.resize(*self.resize)
+        size = self.resize[::-1]
+        im1 = im1.resize(*size)
+        im2 = im2.resize(*size)
 
-        return self._ssim(im1=im1, im2=im2)
+        return self._ssim(im1=im1, im2=im2, full=full)
 
-    def _ssim(self, im1: Image, im2: Image):
+    def _ssim(self, im1: Image, im2: Image, full: bool = False):
         new_image_args = {'place': im1.place, 'dtype': self.dtype, 'clone': False}
         nch = im1.channels
 
@@ -106,15 +121,32 @@ class SSIM(object):
             im1 = im1.split()
             im2 = im2.split()
             mssim = np.empty(nch, dtype=np.float64)
+            if full:
+                S = []
+            # 分割通道,计算每个通道的相似度,最后取平均值
             for ch in range(nch):
                 result = self._ssim(im1=Image(data=im1[ch], **new_image_args),
-                                    im2=Image(data=im2[ch], **new_image_args))
-                mssim[ch] = result
-            return mssim.mean()
+                                    im2=Image(data=im2[ch], **new_image_args), full=full)
+                if full:
+                    mssim[ch], _s = result
+                    S.append(_s)
+                else:
+                    mssim[ch] = result
+            mssim = mssim.mean()
+            if full:
+                if new_image_args['place'] == Place.GpuMat:
+                    S = operations['cuda']['merge'](S)
+                else:
+                    S = operations['mat']['merge'](S, nch)
+                S = S * self.data_range
+                S = Image(data=S, place=new_image_args['place'], dtype=np.uint8)
+                return mssim, S
+            else:
+                return mssim
 
-        return self._cv_ssim(im1=im1, im2=im2)
+        return self._cv_ssim(im1=im1, im2=im2, full=full)
 
-    def _cv_ssim(self, im1: Image, im2: Image):
+    def _cv_ssim(self, im1: Image, im2: Image, full: bool = False):
         h, w = im1.shape[:2]
         new_image_args = {'place': im1.place, 'dtype': self.dtype, 'clone': False}
         cuda_flag = im1.place == Place.GpuMat
@@ -170,6 +202,10 @@ class SSIM(object):
         pad = (self.win_size - 1) // 2
         r = Rect(pad, pad, (w - (2 * pad)), (h - (2 * pad)))
 
-        m = Image(data=S, dtype=np.float64, place=Place.Ndarray).crop(r).data
-        m = cv2.mean(m)[0]
-        return m
+        mssim = Image(data=S, dtype=np.float64, place=Place.Ndarray).crop(r).data
+        mssim = cv2.mean(mssim)[0]
+
+        if full:
+            return mssim, S
+        else:
+            return mssim

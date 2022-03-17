@@ -19,7 +19,6 @@ except AttributeError:
 
 
 class _Image(object):
-
     def __init__(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat],
                  read_mode: int = cv2.IMREAD_COLOR, dtype=np.uint8, place=Place.Mat, clone: bool = True):
         """
@@ -338,7 +337,7 @@ class Image(_Image):
 
         Args:
             code(int): 颜色转换代码
-            https://docs.opencv.org/4.x/d8/d01/group__imgproc__color__conversions.html#ga4e0972be5de079fed4e3a10e24ef5ef0
+                https://docs.opencv.org/4.x/d8/d01/group__imgproc__color__conversions.html#ga4e0972be5de079fed4e3a10e24ef5ef0
 
         Returns:
             Image: 转换后的新图片
@@ -399,12 +398,9 @@ class Image(_Image):
         elif self._place in (Place.Ndarray, Place.UMat):
             _, data = cv2.threshold(self.data, 0, 255, code)
         elif self._place == Place.GpuMat:
-            if code in (cv2.THRESH_OTSU, cv2.THRESH_TRIANGLE):
+            if code > 4:
                 # cuda threshold不支持这两种方法,需要转换
                 _, data = cv2.threshold(self.data.download(), 0, 255, code)
-                mat = cv2.cuda.GpuMat(data.shape[::-1])
-                mat.upload(data)
-                data = mat
             else:
                 _, data = cv2.cuda.threshold(self.data, 0, 255, code)
         else:
@@ -496,6 +492,24 @@ class Image(_Image):
             cv2.imshow(title, data)
         elif isinstance(data, cv2.cuda.GpuMat):
             cv2.imshow(title, data.download())
+
+    def imwrite(self, fileName: str):
+        """
+        讲图片保存到指定路径
+
+        Args:
+            fileName: 文件路径
+            write_mode: 写入模式
+                https://docs.opencv.org/4.x/d8/d6a/group__imgcodecs__flags.html#ga292d81be8d76901bff7988d18d2b42ac
+
+        Returns:
+            None
+        """
+        data = self.data
+        if isinstance(data, (np.ndarray, cv2.UMat)):
+            cv2.imwrite(fileName, data)
+        elif isinstance(data, cv2.cuda.GpuMat):
+            cv2.imwrite(fileName, data.download())
 
     def split(self):
         """

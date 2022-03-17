@@ -160,7 +160,7 @@ class TestImage(unittest.TestCase):
 
             ssim = SSIM()
             m = ssim.ssim(im1, im2)
-
+            print('ssim={}'.format(m))
             self.assertIsNotNone(m)
 
 

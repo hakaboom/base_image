@@ -159,7 +159,7 @@ class TestImage(unittest.TestCase):
             im2 = Image(data=os.path.join(IMAGEDIR, '2.png'), dtype=np.float32, place=place)
 
             ssim = SSIM()
-            m = ssim.ssim(im1, im2)
+            m, S = ssim.ssim(im1, im2, full=True)
             print('ssim={}'.format(m))
             self.assertIsNotNone(m)
 

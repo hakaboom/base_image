@@ -84,17 +84,21 @@ class SSIM(object):
         if not isinstance(im1, Image) and not isinstance(im2, Image):
             raise ValueError('im1 im2必须为Image类型, im1_type:{}, im2_type:{}'.format(type(im1), type(im2)))
 
-        if im1.place != im2.place:
-            raise ValueError('图片类型必须一致, im1:{}, im2:{}'.format(im1.place, im2.place))
-
-        if not (im1.dtype == im2.dtype == np.float32):
-            raise ValueError('图片类型必须为np.float32, im1:{}, im2:{}'.format(im1.dtype, im2.dtype))
-
         if im1.channels != im2.channels:
             raise ValueError('图片通道数量必须一致, im1:{}, im2:{}'.format(im1.place, im2.place))
 
         if im1.size != im2.size:
             raise ValueError('图片通道数量大小一致, im1:{}, im2:{}'.format(im1.size, im2.size))
+
+        if im1.place != im2.place:
+            im2 = Image(im2, place=im1.place, dtype=np.float32)
+
+        if im1.dtype != np.float32:
+            im1 = Image(im1, place=im1.place, dtype=np.float32)
+
+        if im2.dtype != np.float32:
+            im2 = Image(im2, place=im2.place, dtype=np.float32)
+        return im1, im2
 
     def ssim(self, im1: Image, im2: Image, full: bool = False) -> Tuple[float, Optional[Image]]:
         """
@@ -109,7 +113,7 @@ class SSIM(object):
             mssim(float): 结构相似度
             S(Image): if full==True 完整的结构相似性图像。
         """
-        self._image_check(im1=im1, im2=im2)
+        im1, im2 = self._image_check(im1=im1, im2=im2)
         size = self.resize[::-1]
         im1 = im1.resize(*size)
         im2 = im2.resize(*size)

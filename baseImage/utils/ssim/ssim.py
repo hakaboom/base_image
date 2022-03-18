@@ -87,6 +87,9 @@ class SSIM(object):
         if im1.place != im2.place:
             raise ValueError('图片类型必须一致, im1:{}, im2:{}'.format(im1.place, im2.place))
 
+        if not (im1.dtype == im2.dtype == np.float32):
+            raise ValueError('图片类型必须为np.float32, im1:{}, im2:{}'.format(im1.dtype, im2.dtype))
+
         if im1.channels != im2.channels:
             raise ValueError('图片通道数量必须一致, im1:{}, im2:{}'.format(im1.place, im2.place))
 
@@ -129,23 +132,39 @@ class SSIM(object):
                                     im2=Image(data=im2[ch], **new_image_args), full=full)
                 if full:
                     mssim[ch], _s = result
-                    S.append(_s)
+                    S.append(_s.data)
                 else:
                     mssim[ch] = result
+
             mssim = mssim.mean()
             if full:
-                S = operations['mat']['merge'](S, nch)
-                S = Image(data=S, place=new_image_args['place'], dtype=self.dtype)
+                if new_image_args['place'] == Place.GpuMat:
+                    S = operations['cuda']['merge'](S)
+                else:
+                    S = operations['mat']['merge'](S, nch)
+                S = Image(data=S, place=new_image_args['place'], dtype=np.uint8)
                 return mssim, S
             else:
                 return mssim
 
-        return self._cv_ssim(im1=im1, im2=im2, full=full)
+        # 单通道处理
+        result = self._cv_ssim(im1=im1, im2=im2, full=full)
+        if full:
+            mssim, S = result
+            S = Image(data=S, place=new_image_args['place'], dtype=np.uint8)
+            return mssim, S
+        else:
+            mssim = result
+            return mssim
 
-    def _cv_ssim(self, im1: Image, im2: Image, full: bool = False):
+    def _cv_ssim(self, im1: Image, im2: Image, full: bool = False) -> Tuple[float, Optional[np.ndarray]]:
+        """
+        full返回的会是uint8格式
+        """
         h, w = im1.shape[:2]
         new_image_args = {'place': im1.place, 'dtype': self.dtype, 'clone': False}
         cuda_flag = im1.place == Place.GpuMat
+        umat_flag = im1.place == Place.UMat
 
         ux = im1.gaussianBlur(**self.gaussian_args).data
         uy = im2.gaussianBlur(**self.gaussian_args).data
@@ -187,6 +206,13 @@ class SSIM(object):
             B2 = add(add(vx, vy), C2)
             D = multiply(B1, B2)
             S = divide(multiply(A1, A2), D).download()
+        elif umat_flag:
+            A1 = add(multiply(2, multiply(ux, uy)), C1)
+            A2 = add(multiply(2, vxy), C2)
+            B1 = add(add(pow(ux, 2), pow(uy, 2)), C1)
+            B2 = add(add(vx, vy), C2)
+            D = multiply(B1, B2)
+            S = divide(multiply(A1, A2), D).get()
         else:
             A1 = add(multiply(2, multiply(ux, uy)), C1)
             A2 = add(multiply(2, vxy), C2)
@@ -202,6 +228,7 @@ class SSIM(object):
         mssim = cv2.mean(mssim)[0]
 
         if full:
+            S = np.round(S, 6)  # 精度问题
             return mssim, S * self.data_range
         else:
             return mssim

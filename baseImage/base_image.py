@@ -382,27 +382,29 @@ class Image(_Image):
 
         return self._clone_with_params(data, clone=False)
 
-    def threshold(self, code=cv2.THRESH_OTSU):
+    def threshold(self, thresh: int = 0, maxval: int = 255, code=cv2.THRESH_OTSU):
         """
         图片二值化
 
         Args:
+            thresh: 阈值
+            maxval: 最大值
             code: type of the threshold operation
 
         Returns:
              Image: 二值化后的图片
         """
         if self._place == Place.Mat:
-            _, data = cv2.threshold(self.data, 0, 255, code)  # return: np.ndarray
+            _, data = cv2.threshold(self.data, thresh, maxval, code)  # return: np.ndarray
             data = self._create_mat(data=data, shape=data.shape)
         elif self._place in (Place.Ndarray, Place.UMat):
-            _, data = cv2.threshold(self.data, 0, 255, code)
+            _, data = cv2.threshold(self.data, thresh, maxval, code)
         elif self._place == Place.GpuMat:
             if code > 4:
                 # cuda threshold不支持这两种方法,需要转换
-                _, data = cv2.threshold(self.data.download(), 0, 255, code)
+                _, data = cv2.threshold(self.data.download(), thresh, maxval, code)
             else:
-                _, data = cv2.cuda.threshold(self.data, 0, 255, code)
+                _, data = cv2.cuda.threshold(self.data, thresh, maxval, code)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
 

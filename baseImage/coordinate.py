@@ -39,6 +39,9 @@ class Point(object):
     def __str__(self):
         return '<Point [{:.1f}, {:.1f}]>'.format(self.x, self.y)
 
+    def __repr__(self):
+        return str(self)
+
     def __add__(self, other):
         if type(other) == Point:
             return Point(self.x + other.x, self.y + other.y)
@@ -88,6 +91,9 @@ class Size(object):
 
     def __str__(self):
         return '<Size [{} x {}]>'.format(self.width, self.height)
+
+    def __repr__(self):
+        return str(self)
 
     def __add__(self, other):
         if type(other) == Size:
@@ -159,6 +165,9 @@ class Rect(object):
     def __str__(self):
         return '<Rect [Point({:.1f}, {:.1f}), Size[{:.1f}, {:.1f}]]'.format(
             self.x, self.y, self.width, self.height)
+
+    def __repr__(self):
+        return str(self)
 
     @property
     def size(self):

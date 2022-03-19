@@ -37,20 +37,27 @@ class ImageDiff(object):
             gary = score.cvtColor(cv2.COLOR_BGR2GRAY)
         else:
             gary = score
-        gary.dtype_convert(dtype=np.uint8)
+        Image(gary).imshow()
+
         # 二值化
-        thresh = gary.threshold(code=cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU).data
+        thresh = gary.bitwise_not().threshold(code=cv2.THRESH_BINARY)
+        Image(thresh).imshow('thresh')
+
         # 闭运算
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        erosion = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        erosion = cv2.morphologyEx(thresh.data, cv2.MORPH_CLOSE, kernel)
 
         # 寻找轮廓
         cnts, hierarchy = cv2.findContours(erosion, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if im1.size != self.ssim.resize:
+            new_cnts = []
             scale = np.array([im1.size[1]/self.ssim.resize[1], im1.size[0]/self.ssim.resize[0]])
-            cnts = cnts * scale
-            cnts = cnts.astype(np.int32)
+            for cnt in cnts:
+                cnt = cnt * scale
+                cnt = cnt.astype(np.int32)
+                new_cnts.append(cnt)
+            return new_cnts
         return cnts
 
 """

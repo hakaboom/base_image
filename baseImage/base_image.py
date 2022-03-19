@@ -281,16 +281,19 @@ class Image(_Image):
         拷贝一个新图片对象
 
         Returns:
-            data: 新图片对象
+            Image: 新图片对象
         """
         return Image(data=self._data, read_mode=self._read_mode, dtype=self.dtype, place=self.place)
 
     def _clone_with_params(self, data, **kwargs):
         """
-        拷贝一个新图片对象
+        用data拷贝一个新图片对象(保留原Image对象的dtype|read_mode|place)
+
+        Args:
+            data: 图片数据
 
         Returns:
-            data: 新图片对象
+            Image: 新图片对象
         """
         clone = kwargs.pop('clone', True)
         return Image(data=data, read_mode=self._read_mode, dtype=self.dtype, place=self.place, clone=clone)
@@ -410,7 +413,7 @@ class Image(_Image):
 
         return self._clone_with_params(data, clone=False)
 
-    def rectangle(self, rect: Rect, color: Tuple[int, int, int] = (0, 255, 0), thickness: int = 1, lineType=cv2.LINE_8):
+    def rectangle(self, rect: Rect, color: Tuple[int, int, int] = (0, 255, 0), thickness: int = 1, lineType=cv2.LINE_8) -> None:
         """
         在图像上画出矩形, 注!绘制会在原图上进行,不会产生新的图片对象
 
@@ -445,16 +448,6 @@ class Image(_Image):
         Returns:
              Image: 高斯滤镜模糊图像
         """
-        # r, c = np.mgrid[0:size:1, 0:size:1]
-        # r -= int((size - 1) / 2)
-        # c -= int((size - 1) / 2)
-        # norm_ = np.power(r, 2.0) + np.power(c, 2.0)
-        # gaussianKernel = np.exp(- norm_ / (2 * sigma))
-        # gaussianKernel /= np.sum(gaussianKernel)
-        #
-        # out = cv2.filter2D(img, cv2.CV_32F, kernel=gaussianKernel)
-        # out = np.array(out, dtype=np.uint8)
-
         if not (size[0] % 2 == 1) or not (size[1] % 2 == 1):
             raise ValueError('Window size must be odd.')
 
@@ -465,6 +458,7 @@ class Image(_Image):
             data = cv2.GaussianBlur(self.data, ksize=size, sigmaX=sigma, sigmaY=sigma, borderType=borderType)
         elif self._place == Place.GpuMat:
             dtype = self.data.type()
+            # TODO: 感觉可以优化
             gaussian = cv2.cuda.createGaussianFilter(dtype, dtype, ksize=size, sigma1=sigma, sigma2=sigma,
                                                      rowBorderMode=borderType, columnBorderMode=borderType)
             data = gaussian.apply(self.data)
@@ -472,7 +466,26 @@ class Image(_Image):
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
 
-    def imshow(self, title: str = None, flag: int = cv2.WINDOW_KEEPRATIO):
+    def bitwise_not(self, mask=None):
+        """
+        反转图片颜色
+
+        Args:
+            mask: 掩码
+
+        Returns:
+             Image: 反转后的图片
+        """
+        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
+            data = cv2.bitwise_not(self.data, mask=mask)
+        elif self._place == Place.GpuMat:
+            data = cv2.cuda.bitwise_not(self.data, mask=mask)
+        else:
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
+
+        return self._clone_with_params(data, clone=False)
+
+    def imshow(self, title: str = None, flag: int = cv2.WINDOW_KEEPRATIO) -> None:
         """
         以GUI显示图片
 
@@ -495,7 +508,7 @@ class Image(_Image):
         elif isinstance(data, cv2.cuda.GpuMat):
             cv2.imshow(title, data.download())
 
-    def imwrite(self, fileName: str):
+    def imwrite(self, fileName: str) -> None:
         """
         讲图片保存到指定路径
 

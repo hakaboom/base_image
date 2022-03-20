@@ -30,34 +30,53 @@ class ImageDiff(object):
         im1, im2 = self._image_check(im1, im2)
         return self._diff(im1, im2)
 
-    def _diff(self, im1: Image, im2: Image):
+    def _diff(self, im1: Image, im2: Image, threshold: float = 0.95):
+        """
+        ssim对比,并找到差异区域
+
+        Args:
+            im1: 对比图片1
+            im2: 对比图片2
+            threshold: 允许的阈值,用于二值化时过滤部分像素,计算公式:thresh=int(255 * (1-threshold))
+
+        Returns:
+            tuple|list: 差异区域的轮廓
+        """
         mssim, score = self.ssim.ssim(im1, im2, full=True)
         # 灰度
         if score.channels == 3:
             gary = score.cvtColor(cv2.COLOR_BGR2GRAY)
         else:
             gary = score
-        Image(gary).imshow()
+
+        # 反色
+        gary = gary.bitwise_not()
+        # Image(gary).imshow('gary')
 
         # 二值化
-        thresh = gary.bitwise_not().threshold(code=cv2.THRESH_BINARY)
-        Image(thresh).imshow('thresh')
+        thresh = gary.threshold(code=cv2.THRESH_BINARY, thresh=int(255 * (1 - threshold)), maxval=255)
 
         # 闭运算
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
         erosion = cv2.morphologyEx(thresh.data, cv2.MORPH_CLOSE, kernel)
-
+        Image(erosion).imshow('erosion')
         # 寻找轮廓
         cnts, hierarchy = cv2.findContours(erosion, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+        cnts = list(cnts)
         if im1.size != self.ssim.resize:
-            new_cnts = []
             scale = np.array([im1.size[1]/self.ssim.resize[1], im1.size[0]/self.ssim.resize[0]])
-            for cnt in cnts:
-                cnt = cnt * scale
-                cnt = cnt.astype(np.int32)
-                new_cnts.append(cnt)
-            return new_cnts
+            for index, cnt in enumerate(cnts):
+                cnts[index] = (cnt * scale).astype(np.int32)
+
+        for cnt in cnts:
+            M = cv2.moments(cnt)
+            if M['m00'] == 0.0:
+                cnts.remove(cnt)
+
+        for cnt in cnts:
+            M = cv2.moments(cnt)
+            print(M)
         return cnts
 
 """

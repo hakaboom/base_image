@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import unittest
 from baseImage.base_image import Image, Size, Rect
-from baseImage.constant import Place
+from baseImage.constant import Place, CUDA_Flag
 from baseImage.utils.api import cvType_to_npType
 from baseImage.utils.ssim import SSIM
 import os
@@ -9,10 +9,6 @@ import os
 import numpy as np
 import cv2
 
-if cv2.cuda.getCudaEnabledDeviceCount() > 0:
-    cuda_flag = True
-else:
-    cuda_flag = False
 
 try:
     cv2.cuda.GpuMat()
@@ -24,7 +20,7 @@ IMAGEDIR = os.path.dirname(os.path.abspath(__file__)) + "/image"
 
 class TestImage(unittest.TestCase):
     def setUp(self):
-        if cuda_flag:
+        if CUDA_Flag:
             self.place_list = [(Place.Ndarray, np.ndarray), (Place.Mat, cv2.Mat), (Place.UMat, cv2.UMat), 
                                (Place.GpuMat, cv2.cuda_GpuMat)]
         else:

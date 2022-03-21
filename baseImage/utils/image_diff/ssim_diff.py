@@ -69,15 +69,18 @@ class ImageDiff(object):
             for index, cnt in enumerate(cnts):
                 cnts[index] = (cnt * scale).astype(np.int32)
 
+        result = []
         for cnt in cnts:
             M = cv2.moments(cnt)
             if M['m00'] == 0.0:
-                cnts.remove(cnt)
+                continue
+            else:
+                result.append(cnt)
 
-        for cnt in cnts:
-            M = cv2.moments(cnt)
-            print(M)
-        return cnts
+        # for cnt in cnts:
+        #     M = cv2.moments(cnt)
+        #     print(M)
+        return result
 
 """
 for c in cnts:
@@ -89,3 +92,22 @@ for c in cnts:
 cv2.imshow("Original", imageA)
 cv2.imshow("Modified", imageB)
 cv2.waitKey(0)"""
+
+if __name__ == '__main__':
+    img1 = Image('tests/image/1.png', place=Place.Ndarray)  # .crop(Rect(871,254,647,516))
+    img2 = Image('tests/image/2.png', place=Place.Ndarray)  # .crop(Rect(871,254,647,516))
+
+    diff = ImageDiff(resize=img1.size)
+
+    cnts = diff.diff(img1, img2)
+    imageA = img1.data.copy()
+    imageB = img2.data.copy()
+    print(len(cnts))
+    for c in cnts:
+        (x, y, w, h) = cv2.boundingRect(c)
+        cv2.rectangle(imageA, (x, y), (x + w, y + h), (0, 0, 255), 2)
+        cv2.rectangle(imageB, (x, y), (x + w, y + h), (0, 0, 255), 2)
+
+    cv2.imshow("Original", imageA)
+    cv2.imshow("Modified", imageB)
+    cv2.waitKey(0)

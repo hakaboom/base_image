@@ -271,11 +271,6 @@ class _Image(object):
 
 
 class Image(_Image):
-
-    def __init__(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat, _Image],
-                 read_mode: int = cv2.IMREAD_COLOR, dtype=np.uint8, place=Place.Mat, clone: bool = True):
-        super(Image, self).__init__(data=data, read_mode=read_mode, dtype=dtype, place=place, clone=clone)
-
     def clone(self):
         """
         拷贝一个新图片对象
@@ -410,7 +405,6 @@ class Image(_Image):
                 _, data = cv2.cuda.threshold(self.data, thresh, maxval, code)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
-
         return self._clone_with_params(data, clone=False)
 
     def rectangle(self, rect: Rect, color: Tuple[int, int, int] = (0, 255, 0), thickness: int = 1, lineType=cv2.LINE_8) -> None:

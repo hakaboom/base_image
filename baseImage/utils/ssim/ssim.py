@@ -1,29 +1,9 @@
 from baseImage import Image, Rect
-from baseImage.constant import Place
+from baseImage.constant import Place, operations, CUDA_Flag
 
 import cv2
 import numpy as np
 from typing import Union, Optional, Tuple
-
-
-operations = {
-    'mat': {
-        'multiply': cv2.multiply,
-        'subtract': cv2.subtract,
-        'add': cv2.add,
-        'pow': cv2.pow,
-        'divide': cv2.divide,
-        'merge': cv2.merge,
-    },
-    'cuda': {
-        'multiply': cv2.cuda.multiply,
-        'subtract': cv2.cuda.subtract,
-        'add': cv2.cuda.add,
-        'pow': cv2.cuda.pow,
-        'divide': cv2.cuda.divide,
-        'merge': cv2.cuda.merge,
-    }
-}
 
 
 class SSIM(object):
@@ -58,10 +38,11 @@ class SSIM(object):
         self.cov_norm = cov_norm
         self.gaussian_args = {'size': (win_size, win_size), 'sigma': sigma, 'borderType': cv2.BORDER_REFLECT}
 
-        if cv2.cuda.getCudaEnabledDeviceCount() > 0:
+        if CUDA_Flag:
             self._buffer_cuda_mat()
 
     def _buffer_cuda_mat(self):
+        # https://github.com/opencv/opencv/issues/18026
         size = self.resize
 
         cov_norm = np.empty(size, dtype=np.float32)

@@ -69,7 +69,7 @@ class SSIM(object):
             raise ValueError('图片通道数量必须一致, im1:{}, im2:{}'.format(im1.place, im2.place))
 
         if im1.size != im2.size:
-            raise ValueError('图片通道数量大小一致, im1:{}, im2:{}'.format(im1.size, im2.size))
+            raise ValueError('图片大小一致, im1:{}, im2:{}'.format(im1.size, im2.size))
 
         if im1.place != im2.place:
             im2 = Image(im2, place=im1.place, dtype=np.float32)

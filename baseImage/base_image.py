@@ -220,6 +220,8 @@ class _Image(object):
             shape = self.data.size()[::-1] + (self.data.channels(),)
         elif self._place == Place.UMat:
             shape = self.data.get().shape
+        else:
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
 
         if len(shape) == 2:  # 当Mat和Ndarray为单通道时,shape会缺少通道
             shape = shape + (1,)
@@ -374,7 +376,6 @@ class Image(_Image):
             data = cv2.cuda.GpuMat(self.data, rect.totuple())
         elif self._place == Place.UMat:
             data = cv2.UMat(self.data, rect.totuple())
-
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
 
@@ -431,7 +432,7 @@ class Image(_Image):
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
 
-    def gaussianBlur(self, size: Tuple[int, int] = (0, 0), sigma: Union[int, float] = 1.5, borderType: int = cv2.BORDER_DEFAULT):
+    def gaussianBlur(self, size: Tuple[int, int] = (11, 11), sigma: Union[int, float] = 1.5, borderType: int = cv2.BORDER_DEFAULT):
         """
         使用高斯滤镜模糊图像
 

@@ -1,30 +1,35 @@
 # -*- coding: utf-8 -*-
 import cv2
 import numpy as np
-from numpy.core import generic
 
-from typing import Tuple, Union, overload
+from typing import Tuple, Union, overload, Type
 
 from .constant import Place
 from .coordinate import Rect, Size
 
 
+Dtype = Union[Type[np.uint8], Type[np.int8], Type[np.uint16], Type[np.int16], Type[np.int32], Type[np.float32], Type[np.float64]]
+
+
 class _Image(object):
     _data: Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat]
     _read_mode: int
+    _dtype: Dtype
     _place: int
-    def __init__(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat],
-                 read_mode: int = cv2.IMREAD_COLOR, dtype: generic = np.uint8, place: int = Place.Mat, clone: bool = True): ...
+    def __init__(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat, Image],
+                 read_mode: int = cv2.IMREAD_COLOR,
+                 dtype: Dtype = np.uint8,
+                 place: int = Place.Mat, clone: bool = True): ...
 
-    def write(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat],
-              read_mode: int = None, dtype=None, place=None, clone=True) -> None: ...
+    def write(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat, Image],
+              read_mode: int = None, dtype: Dtype = None, place=None, clone=True) -> None: ...
 
     @classmethod
     def _create_mat(cls, data: Union[np.ndarray, cv2.Mat], shape: Union[tuple, list]) -> cv2.Mat: ...
 
-    def dtype_convert(self, dtype) -> None: ...
+    def dtype_convert(self, dtype: Dtype) -> None: ...
 
-    def place_convert(self, place) -> None: ...
+    def place_convert(self, place: int) -> None: ...
 
     @property
     def shape(self) -> Tuple[int, int, int]: ...

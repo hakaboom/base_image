@@ -1,0 +1,5 @@
+include requirements.txt
+include baseImage/*
+include baseImage/utils/*
+include baseImage/utils/image_diff/*
+include baseImage/utils/ssim/*

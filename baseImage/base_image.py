@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import cv2
 import numpy as np
-from loguru import logger
 
 from typing import Tuple, Union
 from functools import singledispatchmethod
@@ -9,7 +8,6 @@ from functools import singledispatchmethod
 from .constant import Place, SHOW_INDEX
 from .coordinate import Rect, Size
 from .utils.api import read_image, bytes_2_img, cvType_to_npType, npType_to_cvType
-from .exceptions import NoImageDataError, WriteImageError, TransformError
 
 
 try:

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import unittest
-from baseImage.base_image import Image, Size, Rect
+from baseImage import Image, Rect
 from baseImage.constant import Place, CUDA_Flag
 from baseImage.utils.api import cvType_to_npType
 from baseImage.utils.ssim import SSIM

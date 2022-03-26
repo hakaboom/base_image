@@ -11,7 +11,7 @@ def install_requires():
         return None
     except ModuleNotFoundError:
         return [
-            'numpy>=1.21.4',
+            'numpy',
             'opencv-python>=4.5.4.60',
             'pydantic'
         ]
@@ -19,7 +19,7 @@ def install_requires():
 
 setup(
     name='baseImage',
-    version='1.1.2',
+    version='2.0.0',
     author='hakaboom',
     author_email='1534225986@qq.com',
     license='Apache License 2.0',
@@ -31,9 +31,12 @@ setup(
     packages=find_packages(),
     install_requires=install_requires(),
     classifiers=[
-        "Programming Language :: Python :: 3",
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.8, <=3.9',
+    python_requires='>=3.8, <=3.10',
 )

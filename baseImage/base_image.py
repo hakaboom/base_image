@@ -294,30 +294,31 @@ class Image(_Image):
         return Image(data=data, read_mode=self._read_mode, dtype=self.dtype, place=self.place, clone=clone)
 
     @singledispatchmethod
-    def resize(self, w: int, h: int):
+    def resize(self, w: int, h: int, code: int = cv2.INTER_LINEAR):
         """
         调整图片大小
 
         Args:
             w(int): 需要设定的宽
             h(int): 需要设定的长
+            code(int): 缩放方法 https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html#ga5bb5a1fea74ea38e1a5445ca803ff121
 
         Returns:
             Image: 调整大小后的图像
         """
         if self._place == Place.Mat:
-            data = cv2.resize(self.data, (int(w), int(h)))  # return: np.ndarray
+            data = cv2.resize(self.data, (int(w), int(h)), interpolation=code)  # return: np.ndarray
             data = self._create_mat(data, data.shape)
         elif self._place in (Place.Ndarray, Place.UMat):
-            data = cv2.resize(self.data, (int(w), int(h)))
+            data = cv2.resize(self.data, (int(w), int(h)), interpolation=code)
         elif self._place == Place.GpuMat:
-            data = cv2.cuda.resize(self.data, (int(w), int(h)))
+            data = cv2.cuda.resize(self.data, (int(w), int(h)), interpolation=code)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
 
     @resize.register(Size)
-    def _(self, size: Size):
+    def _(self, size: Size, code: int = cv2.INTER_LINEAR):
         """
         调整图片大小
 
@@ -327,7 +328,7 @@ class Image(_Image):
         Returns:
             Image: 调整大小后的图像
         """
-        return self.resize(int(size.width), int(size.height))
+        return self.resize(int(size.width), int(size.height), code=code)
 
     def cvtColor(self, code):
         """

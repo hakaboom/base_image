@@ -91,7 +91,7 @@ class TestImage(unittest.TestCase):
     def test_resize(self):
         for place, ptype in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
-            new_img = img.resize(400, 400)
+            new_img = img.resize(400, 400, cv2.INTER_AREA)
 
             self.assertEqual(new_img.size, (400, 400))
             self.assertNotEqual(id(img.data), id(new_img.data))
@@ -156,7 +156,6 @@ class TestImage(unittest.TestCase):
 
             ssim = SSIM()
             m, S = ssim.ssim(im1, im2, full=True)
-            print('ssim={}'.format(m))
             self.assertIsNotNone(m)
 
 

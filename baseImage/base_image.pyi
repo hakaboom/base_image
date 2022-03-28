@@ -2,7 +2,7 @@
 import cv2
 import numpy as np
 
-from typing import Tuple, Union, overload, Type
+from typing import Tuple, Union, overload, Type, List
 
 from .constant import Place
 from .coordinate import Rect, Size
@@ -60,7 +60,9 @@ class Image(_Image):
     def resize(self, w: int, h: int, code: int = cv2.INTER_LINEAR) -> Image: ...
 
     @overload
-    def resize(self, size: Size, code: int = cv2.INTER_LINEAR) -> Image: ...
+    def resize(self, size: Union[Tuple[int, int], List[int, int], Size], code: int = cv2.INTER_LINEAR) -> Image: ...
+
+    def _resize(self, w: int, h: int, code: int = cv2.INTER_LINEAR) -> Image: ...
 
     def cvtColor(self, code: int) -> Image: ...
 

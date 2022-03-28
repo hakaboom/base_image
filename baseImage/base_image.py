@@ -3,7 +3,6 @@ import cv2
 import numpy as np
 
 from typing import Tuple, Union
-from functools import singledispatchmethod
 
 from .constant import Place, SHOW_INDEX
 from .coordinate import Rect, Size
@@ -293,42 +292,53 @@ class Image(_Image):
         clone = kwargs.pop('clone', True)
         return Image(data=data, read_mode=self._read_mode, dtype=self.dtype, place=self.place, clone=clone)
 
-    @singledispatchmethod
-    def resize(self, w: int, h: int, code: int = cv2.INTER_LINEAR):
-        """
-        调整图片大小
+    def resize(self, *args, **kwargs):
+        code = kwargs.get('code', cv2.INTER_LINEAR)
 
-        Args:
-            w(int): 需要设定的宽
-            h(int): 需要设定的长
-            code(int): 缩放方法 https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html#ga5bb5a1fea74ea38e1a5445ca803ff121
+        if kwargs.get('Size'):
+            size = kwargs.get('Size')
+            w, h = size.width, size.height
+        elif kwargs.get('w') and kwargs.get('h'):
+            w, h = kwargs.get('w'), kwargs.get('h')
+        else:
+            args_len = len(args)
+            if args_len in (1, 2):  # arg =
+                if args_len == 1:
+                    arg = args[0]
+                else:
+                    arg, code = args
+                if isinstance(arg, Size):
+                    w, h = arg.width, arg.height
+                elif isinstance(arg, (tuple, list)):
+                    if len(arg) == 2:
+                        w, h = arg
+                    else:
+                        raise ValueError('Unknown params args={}, kwargs={}'.format(args, kwargs))
+                else:
+                    raise ValueError('Unknown params args={}, kwargs={}'.format(args, kwargs))
+            elif args_len == 3:
+                w, h, code = args
+            else:
+                raise ValueError('Unknown params args={}, kwargs={}'.format(args, kwargs))
 
-        Returns:
-            Image: 调整大小后的图像
-        """
+        assert type(w) == int, '参数必须是int类型'
+        assert type(h) == int, '参数必须是int类型'
+        assert type(code) == int, '参数必须是int类型'
+        print(w, h, code)
+        return self._resize(w=w, h=h, code=code)
+
+    def _resize(self, w: int, h: int, code: int = cv2.INTER_LINEAR):
+        size = (w, h)
         if self._place == Place.Mat:
-            data = cv2.resize(self.data, (int(w), int(h)), interpolation=code)  # return: np.ndarray
+            data = cv2.resize(self.data, size, interpolation=code)  # return: np.ndarray
             data = self._create_mat(data, data.shape)
         elif self._place in (Place.Ndarray, Place.UMat):
-            data = cv2.resize(self.data, (int(w), int(h)), interpolation=code)
+            data = cv2.resize(self.data, size, interpolation=code)
         elif self._place == Place.GpuMat:
-            data = cv2.cuda.resize(self.data, (int(w), int(h)), interpolation=code)
+            data = cv2.cuda.resize(self.data, size, interpolation=code)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
-
-    @resize.register(Size)
-    def _(self, size: Size, code: int = cv2.INTER_LINEAR):
-        """
-        调整图片大小
-
-        Args:
-            size: 需要设置的长宽
-
-        Returns:
-            Image: 调整大小后的图像
-        """
-        return self.resize(int(size.width), int(size.height), code=code)
 
     def cvtColor(self, code):
         """

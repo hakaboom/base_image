@@ -16,8 +16,7 @@ except AttributeError:
 
 
 class _Image(object):
-    def __init__(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat],
-                 read_mode: int = cv2.IMREAD_COLOR, dtype=np.uint8, place=Place.Mat, clone: bool = True):
+    def __init__(self, data, read_mode=cv2.IMREAD_COLOR, dtype=np.uint8, place=Place.Mat, clone=True):
         """
         基础构造函数
 
@@ -43,8 +42,7 @@ class _Image(object):
         if data is not None:
             self.write(data, read_mode=self._read_mode, dtype=self.dtype, place=self._place, clone=clone)
 
-    def write(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat],
-              read_mode: int = None, dtype=None, place=None, clone=True):
+    def write(self, data, read_mode=None, dtype=None, place=None, clone=True):
         """
         写入图片数据
 
@@ -98,7 +96,7 @@ class _Image(object):
         # logger.debug(f'输出type={type(self._data)}, id={id(self._data)}, place={place}')
 
     @classmethod
-    def _create_mat(cls, data: Union[np.ndarray, cv2.Mat], shape: Union[tuple, list]):
+    def _create_mat(cls, data, shape):
         if len(shape) == 2:  # 当Mat和Ndarray为单通道时,shape会缺少通道
             shape = shape + (1,)
 
@@ -204,7 +202,7 @@ class _Image(object):
         self._place = place
 
     @property
-    def shape(self) -> Tuple[int, int, int]:
+    def shape(self):
         """
         获取图片的长、宽、通道数
 
@@ -336,7 +334,7 @@ class Image(_Image):
 
         return self._resize(w=w, h=h, code=code)
 
-    def _resize(self, w: int, h: int, code: int = cv2.INTER_LINEAR):
+    def _resize(self, w, h, code=cv2.INTER_LINEAR):
         size = (w, h)
         if self.place == Place.Mat:
             data = cv2.resize(self.data, size, interpolation=code)  # return: np.ndarray
@@ -399,7 +397,7 @@ class Image(_Image):
 
         return self._clone_with_params(data, clone=False)
 
-    def threshold(self, thresh: int = 0, maxval: int = 255, code=cv2.THRESH_OTSU):
+    def threshold(self, thresh=0, maxval=255, code=cv2.THRESH_OTSU):
         """
         图片二值化
 
@@ -426,7 +424,7 @@ class Image(_Image):
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
 
-    def rectangle(self, rect: Rect, color: Tuple[int, int, int] = (0, 255, 0), thickness: int = 1, lineType=cv2.LINE_8) -> None:
+    def rectangle(self, rect, color=(0, 255, 0), thickness=1, lineType=cv2.LINE_8):
         """
         在图像上画出矩形, 注!绘制会在原图上进行,不会产生新的图片对象
 
@@ -450,7 +448,7 @@ class Image(_Image):
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
 
-    def copyMakeBorder(self, top: int, bottom: int, left: int, right: int, borderType: int):
+    def copyMakeBorder(self, top, bottom, left, right, borderType):
         """
         扩充边缘
 
@@ -472,7 +470,7 @@ class Image(_Image):
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
 
-    def gaussianBlur(self, size: Tuple[int, int] = (11, 11), sigma: Union[int, float] = 1.5, borderType: int = cv2.BORDER_DEFAULT):
+    def gaussianBlur(self, size=(11, 11), sigma=1.5, borderType=cv2.BORDER_DEFAULT):
         """
         使用高斯滤镜模糊图像
 
@@ -520,7 +518,7 @@ class Image(_Image):
 
         return self._clone_with_params(data, clone=False)
 
-    def imshow(self, title: str = None, flag: int = cv2.WINDOW_KEEPRATIO) -> None:
+    def imshow(self, title=None, flag=cv2.WINDOW_KEEPRATIO):
         """
         以GUI显示图片
 
@@ -543,7 +541,7 @@ class Image(_Image):
         elif isinstance(data, cv2.cuda.GpuMat):
             cv2.imshow(title, data.download())
 
-    def imwrite(self, file_name: str) -> None:
+    def imwrite(self, file_name):
         """
         讲图片保存到指定路径
 

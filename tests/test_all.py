@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import unittest
-from baseImage import Image, Rect
+from baseImage import Image, Rect, Size
 from baseImage.constant import Place, CUDA_Flag
 from baseImage.utils.api import cvType_to_npType
 from baseImage.utils.ssim import SSIM
@@ -148,6 +148,16 @@ class TestImage(unittest.TestCase):
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             img_bgr = img.split()
             # 好像没啥东西可以验证
+
+    def test_copyMakeBorder(self):
+        for place, ptype in self.place_list:
+            img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
+            new_img = img.copyMakeBorder(10, 10, 10, 10, cv2.BORDER_REPLICATE)
+
+            size = Size(img.size[0] + 20, img.size[1] + 20)
+            self.assertEqual(new_img.size, (size.width, size.height))
+            self.assertNotEqual(id(img.data), id(new_img.data))
+            self.assertEqual(type(img.data), ptype)  # 判断类型是否一致
 
     def test_ssim(self):
         for place, ptype in self.place_list:

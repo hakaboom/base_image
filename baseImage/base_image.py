@@ -211,14 +211,14 @@ class _Image(object):
         Returns:
             shape: (长,宽,通道数)
         """
-        if self._place in (Place.Mat, Place.Ndarray):
+        if self.place in (Place.Mat, Place.Ndarray):
             shape = self.data.shape
-        elif self._place == Place.GpuMat:
+        elif self.place == Place.GpuMat:
             shape = self.data.size()[::-1] + (self.data.channels(),)
-        elif self._place == Place.UMat:
+        elif self.place == Place.UMat:
             shape = self.data.get().shape
         else:
-            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
 
         if len(shape) == 2:  # 当Mat和Ndarray为单通道时,shape会缺少通道
             shape = shape + (1,)
@@ -243,11 +243,11 @@ class _Image(object):
         Returns:
             channels: 通道数
         """
-        if self._place in (Place.Mat, Place.Ndarray):
+        if self.place in (Place.Mat, Place.Ndarray):
             return self.shape[2]
-        elif self._place == Place.GpuMat:
+        elif self.place == Place.GpuMat:
             return self.data.channels()
-        elif self._place == Place.UMat:
+        elif self.place == Place.UMat:
             return self.shape[2]
 
     @property
@@ -338,15 +338,15 @@ class Image(_Image):
 
     def _resize(self, w: int, h: int, code: int = cv2.INTER_LINEAR):
         size = (w, h)
-        if self._place == Place.Mat:
+        if self.place == Place.Mat:
             data = cv2.resize(self.data, size, interpolation=code)  # return: np.ndarray
             data = self._create_mat(data, data.shape)
-        elif self._place in (Place.Ndarray, Place.UMat):
+        elif self.place in (Place.Ndarray, Place.UMat):
             data = cv2.resize(self.data, size, interpolation=code)
-        elif self._place == Place.GpuMat:
+        elif self.place == Place.GpuMat:
             data = cv2.cuda.resize(self.data, size, interpolation=code)
         else:
-            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
 
     def cvtColor(self, code):
@@ -360,15 +360,15 @@ class Image(_Image):
         Returns:
             Image: 转换后的新图片
         """
-        if self._place == Place.Mat:
+        if self.place == Place.Mat:
             data = cv2.cvtColor(self.data, code)  # return np.ndarray
             data = self._create_mat(data, shape=data.shape)
-        elif self._place in (Place.Ndarray, Place.UMat):
+        elif self.place in (Place.Ndarray, Place.UMat):
             data = cv2.cvtColor(self.data, code)
-        elif self._place == Place.GpuMat:
+        elif self.place == Place.GpuMat:
             data = cv2.cuda.cvtColor(self.data, code)
         else:
-            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
 
         return self._clone_with_params(data, clone=False)
 
@@ -386,16 +386,16 @@ class Image(_Image):
         if not Rect(0, 0, width, height).contains(rect):
             raise OverflowError('Rect不能超出屏幕 rect={}, tl={}, br={}'.format(rect, rect.tl, rect.br))
 
-        if self._place in (Place.Mat, Place.Ndarray):
+        if self.place in (Place.Mat, Place.Ndarray):
             x_min, y_min = int(rect.tl.x), int(rect.tl.y)
             x_max, y_max = int(rect.br.x), int(rect.br.y)
             data = self.data.copy()[y_min:y_max, x_min:x_max]
-        elif self._place == Place.GpuMat:
+        elif self.place == Place.GpuMat:
             data = cv2.cuda.GpuMat(self.data, rect.totuple())
-        elif self._place == Place.UMat:
+        elif self.place == Place.UMat:
             data = cv2.UMat(self.data, rect.totuple())
         else:
-            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
 
         return self._clone_with_params(data, clone=False)
 
@@ -411,19 +411,19 @@ class Image(_Image):
         Returns:
              Image: 二值化后的图片
         """
-        if self._place == Place.Mat:
+        if self.place == Place.Mat:
             _, data = cv2.threshold(self.data, thresh, maxval, code)  # return: np.ndarray
             data = self._create_mat(data=data, shape=data.shape)
-        elif self._place in (Place.Ndarray, Place.UMat):
+        elif self.place in (Place.Ndarray, Place.UMat):
             _, data = cv2.threshold(self.data, thresh, maxval, code)
-        elif self._place == Place.GpuMat:
+        elif self.place == Place.GpuMat:
             if code > 4:
                 # cuda threshold不支持这两种方法,需要转换
                 _, data = cv2.threshold(self.data.download(), thresh, maxval, code)
             else:
                 _, data = cv2.cuda.threshold(self.data, thresh, maxval, code)
         else:
-            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
 
     def rectangle(self, rect: Rect, color: Tuple[int, int, int] = (0, 255, 0), thickness: int = 1, lineType=cv2.LINE_8) -> None:
@@ -442,13 +442,35 @@ class Image(_Image):
         pt1 = rect.tl
         pt2 = rect.br
 
-        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
+        if self.place in (Place.Mat, Place.Ndarray, Place.UMat):
             cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color=color, thickness=thickness, lineType=lineType)
-        elif self._place == Place.GpuMat:
+        elif self.place == Place.GpuMat:
             data = cv2.rectangle(self.data.download(), (pt1.x, pt1.y), (pt2.x, pt2.y), color=color, thickness=thickness, lineType=lineType)
             self.data.upload(data)
         else:
-            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
+
+    def copyMakeBorder(self, top: int, bottom: int, left: int, right: int, borderType: int):
+        """
+        扩充边缘
+
+        Args:
+            top(int): 上扩充大小
+            bottom(int): 下扩充大小
+            left(int): 左扩充大小
+            right(int): 右扩充大小
+            borderType(int): 边缘扩充类型
+
+        Returns:
+
+        """
+        if self.place in (Place.Mat, Place.Ndarray, Place.UMat):
+            data = cv2.copyMakeBorder(self.data, top, bottom, left, right, borderType)
+        elif self.place == Place.GpuMat:
+            data = cv2.copyMakeBorder(self.data.download(), top, bottom, left, right, borderType)
+        else:
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
+        return self._clone_with_params(data, clone=False)
 
     def gaussianBlur(self, size: Tuple[int, int] = (11, 11), sigma: Union[int, float] = 1.5, borderType: int = cv2.BORDER_DEFAULT):
         """
@@ -464,19 +486,19 @@ class Image(_Image):
         if not (size[0] % 2 == 1) or not (size[1] % 2 == 1):
             raise ValueError('Window size must be odd.')
 
-        if self._place == Place.Mat:
+        if self.place == Place.Mat:
             data = cv2.GaussianBlur(self.data, ksize=size, sigmaX=sigma, sigmaY=sigma, borderType=borderType)
             data = self._create_mat(data=data, shape=data.shape)
-        elif self._place in (Place.Ndarray, Place.UMat):
+        elif self.place in (Place.Ndarray, Place.UMat):
             data = cv2.GaussianBlur(self.data, ksize=size, sigmaX=sigma, sigmaY=sigma, borderType=borderType)
-        elif self._place == Place.GpuMat:
+        elif self.place == Place.GpuMat:
             dtype = self.data.type()
             # TODO: 感觉可以优化
             gaussian = cv2.cuda.createGaussianFilter(dtype, dtype, ksize=size, sigma1=sigma, sigma2=sigma,
                                                      rowBorderMode=borderType, columnBorderMode=borderType)
             data = gaussian.apply(self.data)
         else:
-            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
 
     def bitwise_not(self, mask=None):
@@ -489,12 +511,12 @@ class Image(_Image):
         Returns:
              Image: 反转后的图片
         """
-        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
+        if self.place in (Place.Mat, Place.Ndarray, Place.UMat):
             data = cv2.bitwise_not(self.data, mask=mask)
-        elif self._place == Place.GpuMat:
+        elif self.place == Place.GpuMat:
             data = cv2.cuda.bitwise_not(self.data, mask=mask)
         else:
-            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
 
         return self._clone_with_params(data, clone=False)
 
@@ -521,12 +543,12 @@ class Image(_Image):
         elif isinstance(data, cv2.cuda.GpuMat):
             cv2.imshow(title, data.download())
 
-    def imwrite(self, fileName: str) -> None:
+    def imwrite(self, file_name: str) -> None:
         """
         讲图片保存到指定路径
 
         Args:
-            fileName: 文件路径
+            file_name: 文件路径
             write_mode: 写入模式
                 https://docs.opencv.org/4.x/d8/d6a/group__imgcodecs__flags.html#ga292d81be8d76901bff7988d18d2b42ac
 
@@ -535,9 +557,9 @@ class Image(_Image):
         """
         data = self.data
         if isinstance(data, (np.ndarray, cv2.UMat)):
-            cv2.imwrite(fileName, data)
+            cv2.imwrite(file_name, data)
         elif isinstance(data, cv2.cuda.GpuMat):
-            cv2.imwrite(fileName, data.download())
+            cv2.imwrite(file_name, data.download())
 
     def split(self):
         """
@@ -546,10 +568,10 @@ class Image(_Image):
         Returns:
             拆分后的图像数据,不会对数据包装处理
         """
-        if self._place in (Place.Mat, Place.Ndarray, Place.UMat):
+        if self.place in (Place.Mat, Place.Ndarray, Place.UMat):
             data = cv2.split(self.data)
-        elif self._place == Place.GpuMat:
+        elif self.place == Place.GpuMat:
             data = cv2.cuda.split(self.data)
         else:
-            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self._place, self.data, type(self.data)))
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return data

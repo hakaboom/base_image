@@ -19,7 +19,7 @@ def install_requires():
 
 setup(
     name='baseImage',
-    version='2.0.1',
+    version='2.0.2',
     author='hakaboom',
     author_email='1534225986@qq.com',
     license='Apache License 2.0',
@@ -31,6 +31,7 @@ setup(
     packages=find_packages(),
     install_requires=install_requires(),
     classifiers=[
+        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
@@ -38,5 +39,5 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.8, <=3.10',
+    python_requires='>=3.6, <=3.10',
 )

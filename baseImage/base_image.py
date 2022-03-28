@@ -295,20 +295,25 @@ class Image(_Image):
     def resize(self, *args, **kwargs):
         code = kwargs.get('code', cv2.INTER_LINEAR)
 
-        if kwargs.get('Size'):
-            size = kwargs.get('Size')
-            w, h = size.width, size.height
-        elif kwargs.get('w') and kwargs.get('h'):
+        if kwargs.get('size'):
+            size = kwargs.get('size')
+            if isinstance(size, Size):  # args: (size=Size(100, 100), code=2)
+                w, h = size.width, size.height
+            elif isinstance(size, (tuple, list)):  # args: (size=(100, 100), code=2)
+                w, h = size
+            else:
+                raise ValueError('Unknown params args={}, kwargs={}'.format(args, kwargs))
+        elif kwargs.get('w') and kwargs.get('h'):  # args: (w=100, h=100, code=2)
             w, h = kwargs.get('w'), kwargs.get('h')
         else:
             args_len = len(args)
             if args_len in (1, 2):
-                if args_len == 1:  # args=(Size(100, 100)) or ((100, 100))
+                if args_len == 1:  # args:(Size(100, 100)) or ((100, 100))
                     arg = args[0]
                 else:
-                    if isinstance(args[0], (Size, tuple, list)):  # args=(Size(100, 100),2) or ((100, 100), 2)
+                    if isinstance(args[0], (Size, tuple, list)):  # args:(Size(100, 100),2) or ((100, 100), 2)
                         arg, code = args
-                    else:  # args=(100, 100) or Size(100, 100)
+                    else:  # args:(100, 100) or Size(100, 100)
                         arg = args
 
                 if isinstance(arg, Size):

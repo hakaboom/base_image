@@ -302,11 +302,15 @@ class Image(_Image):
             w, h = kwargs.get('w'), kwargs.get('h')
         else:
             args_len = len(args)
-            if args_len in (1, 2):  # arg =
-                if args_len == 1:
+            if args_len in (1, 2):
+                if args_len == 1:  # args=(Size(100, 100)) or ((100, 100))
                     arg = args[0]
                 else:
-                    arg, code = args
+                    if isinstance(args[0], (Size, tuple, list)):  # args=(Size(100, 100),2) or ((100, 100), 2)
+                        arg, code = args
+                    else:  # args=(100, 100) or Size(100, 100)
+                        arg = args
+
                 if isinstance(arg, Size):
                     w, h = arg.width, arg.height
                 elif isinstance(arg, (tuple, list)):
@@ -321,10 +325,10 @@ class Image(_Image):
             else:
                 raise ValueError('Unknown params args={}, kwargs={}'.format(args, kwargs))
 
-        assert type(w) == int, '参数必须是int类型'
-        assert type(h) == int, '参数必须是int类型'
-        assert type(code) == int, '参数必须是int类型'
-        print(w, h, code)
+        assert type(w) == int, '参数必须是int类型, args={}, kwargs={}'.format(args, kwargs)
+        assert type(h) == int, '参数必须是int类型 args={}, kwargs={}'.format(args, kwargs)
+        assert type(code) == int, '参数必须是int类型 args={}, kwargs={}'.format(args, kwargs)
+
         return self._resize(w=w, h=h, code=code)
 
     def _resize(self, w: int, h: int, code: int = cv2.INTER_LINEAR):

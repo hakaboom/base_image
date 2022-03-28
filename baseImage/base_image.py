@@ -467,7 +467,7 @@ class Image(_Image):
         if self.place in (Place.Mat, Place.Ndarray, Place.UMat):
             data = cv2.copyMakeBorder(self.data, top, bottom, left, right, borderType)
         elif self.place == Place.GpuMat:
-            data = cv2.copyMakeBorder(self.data.download(), top, bottom, left, right, borderType)
+            data = cv2.cuda.copyMakeBorder(self.data, top, bottom, left, right, borderType)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)

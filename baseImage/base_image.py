@@ -290,6 +290,40 @@ class Image(_Image):
         clone = kwargs.pop('clone', True)
         return Image(data=data, read_mode=self._read_mode, dtype=self.dtype, place=self.place, clone=clone)
 
+    def rotate(self, code):
+        """
+        旋转图片
+
+        Args:
+            code: 可选90度180度270度(顺时针)
+
+        Returns:
+            Image: 旋转后的图片
+        """
+        assert code in (cv2.ROTATE_180, cv2.ROTATE_90_COUNTERCLOCKWISE, cv2.ROTATE_90_CLOCKWISE)
+
+        if self.place in (Place.Mat, Place.Ndarray, Place.UMat):
+            data = cv2.rotate(self.data, code)
+        elif self.place == Place.GpuMat:
+            if code == cv2.ROTATE_180:
+                size = self.size[::-1]
+                angle = 180
+                offset_x, offset_y = size
+            elif code == cv2.ROTATE_90_CLOCKWISE:
+                size = self.size
+                angle = 90
+                offset_y = size[1]
+                offset_x = 0
+            else:
+                size = self.size
+                angle = 270
+                offset_y = 0
+                offset_x = size[0]
+            data = cv2.cuda.rotate(self.data, size, angle, xShift=offset_x, yShift=offset_y)
+        else:
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
+        return self._clone_with_params(data, clone=False)
+
     def resize(self, *args, **kwargs):
         code = kwargs.get('code', cv2.INTER_LINEAR)
 
@@ -547,8 +581,6 @@ class Image(_Image):
 
         Args:
             file_name: 文件路径
-            write_mode: 写入模式
-                https://docs.opencv.org/4.x/d8/d6a/group__imgcodecs__flags.html#ga292d81be8d76901bff7988d18d2b42ac
 
         Returns:
             None

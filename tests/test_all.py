@@ -143,6 +143,12 @@ class TestImage(unittest.TestCase):
             self.assertNotEqual(id(img.data), id(new_img.data))
             self.assertEqual(type(img.data), ptype)  # 判断类型是否一致
 
+    def test_rotate(self):
+        for place, ptype in self.place_list:
+            img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
+            for code in (cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE, cv2.ROTATE_180):
+                img.rotate(code)
+
     def test_split(self):
         for place, ptype in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)

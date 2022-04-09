@@ -165,6 +165,18 @@ class TestImage(unittest.TestCase):
             self.assertNotEqual(id(img.data), id(new_img.data))
             self.assertEqual(type(img.data), ptype)  # 判断类型是否一致
 
+    def test_warpPerspective(self):
+        point_1 = np.float32([[0, 0], [100, 0], [0, 200], [100, 200]])
+        point_2 = np.float32([[0, 0], [50, 0], [0, 100], [50, 100]])
+        matrix = cv2.getPerspectiveTransform(point_1, point_2)
+        size = Size(50, 100)
+        for place, ptype in self.place_list:
+            img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
+            new_img = img.warpPerspective(matrix, size=size)
+
+            self.assertNotEqual(id(img.data), id(new_img.data))
+            self.assertEqual(type(img.data), ptype)  # 判断类型是否一致
+
     def test_ssim(self):
         for place, ptype in self.place_list:
             im1 = Image(data=os.path.join(IMAGEDIR, '1.png'), dtype=np.float32, place=place)

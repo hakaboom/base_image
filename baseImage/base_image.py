@@ -16,7 +16,7 @@ except AttributeError:
 
 
 class _Image(object):
-    def __init__(self, data, read_mode=cv2.IMREAD_COLOR, dtype=np.uint8, place=Place.Mat, clone=True):
+    def __init__(self, data, read_mode=cv2.IMREAD_COLOR, dtype=np.uint8, place=Place.Ndarray, clone=True):
         """
         基础构造函数
 
@@ -169,14 +169,15 @@ class _Image(object):
 
         elif place == Place.Mat:
             if type(data) == np.ndarray:
-                pass
+                data = self._create_mat(data, data.shape)
             elif type(data) == cv2.Mat:
                 pass
             elif isinstance(data, cv2.cuda.GpuMat):
                 data = data.download()
+                data = self._create_mat(data, data.shape)
             elif isinstance(data, cv2.UMat):
                 data = data.get()
-            data = self._create_mat(data, data.shape)
+                data = self._create_mat(data, data.shape)
 
         elif place == Place.GpuMat:
             if isinstance(data, (np.ndarray, cv2.Mat, cv2.UMat)):
@@ -494,7 +495,7 @@ class Image(_Image):
             borderType(int): 边缘扩充类型
 
         Returns:
-
+            扩充后的图像
         """
         if self.place in (Place.Mat, Place.Ndarray, Place.UMat):
             data = cv2.copyMakeBorder(self.data, top, bottom, left, right, borderType)
@@ -533,6 +534,37 @@ class Image(_Image):
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
 
+    def warpPerspective(self, matrix, size, flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0):
+        """
+        透视变换
+
+        Args:
+            matrix: 3x3变换矩阵
+            size: 输出图像的大小
+            flags: 插值方法
+            borderMode: 像素外推法
+            borderValue: 边界值
+
+        Returns:
+            透视变换后的图片
+        """
+        if isinstance(size, Size):
+            w = size.width
+            h = size.height
+        elif isinstance(size, (tuple, list)):
+            w = size[0]
+            h = size[1]
+        else:
+            raise ValueError('size必须为Size/tuple/list')
+
+        if self.place in (Place.Mat, Place.Ndarray, Place.UMat):
+            data = cv2.warpPerspective(self.data, matrix, (w, h), flags=flags, borderMode=borderMode, borderValue=borderValue)
+        elif self.place == Place.GpuMat:
+            data = cv2.cuda.warpPerspective(self.data, matrix, (w, h), flags=flags, borderMode=borderMode, borderValue=borderValue)
+        else:
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
+        return self._clone_with_params(data, clone=False)
+
     def bitwise_not(self, mask=None):
         """
         反转图片颜色
@@ -552,19 +584,19 @@ class Image(_Image):
 
         return self._clone_with_params(data, clone=False)
 
-    def imshow(self, title=None, flag=cv2.WINDOW_KEEPRATIO):
+    def imshow(self, title=None, flags=cv2.WINDOW_KEEPRATIO):
         """
         以GUI显示图片
 
         Args:
             title(str): cv窗口的名称, 不填写会自动分配
-            flag(int): 窗口类型
+            flags(int): 窗口类型
 
         Returns:
             None
         """
         title = str(title or SHOW_INDEX())
-        cv2.namedWindow(title, flag)
+        cv2.namedWindow(title, flags)
 
         data = self.data
         if self.dtype != np.uint8:

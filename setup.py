@@ -19,7 +19,7 @@ def install_requires():
 
 setup(
     name='baseImage',
-    version='2.0.3',
+    version='2.0.5',
     author='hakaboom',
     author_email='1534225986@qq.com',
     license='Apache License 2.0',

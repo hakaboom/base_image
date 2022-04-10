@@ -609,7 +609,7 @@ class Image(_Image):
 
     def imwrite(self, file_name):
         """
-        讲图片保存到指定路径
+        将图片保存到指定路径
 
         Args:
             file_name: 文件路径

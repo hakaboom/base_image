@@ -217,64 +217,64 @@ class Rect(object):
 Rect.ZERO = Rect(0, 0, 0, 0)
 
 
-class Anchor_transform(object):
+class Anchor(object):
     @staticmethod
-    def Middle(x, y, dev, cur, mainPoint_scale):
-        x = cur.x / 2 - ((dev.x / 2 - x) * mainPoint_scale['x']) + cur.left
-        y = cur.y / 2 - ((dev.y / 2 - y) * mainPoint_scale['y']) + cur.top
+    def Middle(x, y, dev, cur, scale):
+        x = cur.x / 2 - ((dev.x / 2 - x) * scale['x']) + cur.left
+        y = cur.y / 2 - ((dev.y / 2 - y) * scale['y']) + cur.top
         return x, y
 
     @staticmethod
-    def Left(x, y, dev, cur, mainPoint_scale):
-        x = x * mainPoint_scale['x'] + cur.left
-        y = cur.y/2-((dev.y/2-y)*mainPoint_scale['y'])+cur.top
+    def Left(x, y, dev, cur, scale):
+        x = x * scale['x'] + cur.left
+        y = cur.y/2-((dev.y/2-y)*scale['y'])+cur.top
         return x, y
 
     @staticmethod
-    def Right(x, y, dev, cur, mainPoint_scale):
-        x = cur.x-((dev.x-x) * mainPoint_scale['x'])+cur.left
-        y = cur.y/2-((dev.y/2-y) * mainPoint_scale['y'])+cur.top
+    def Right(x, y, dev, cur, scale):
+        x = cur.x-((dev.x-x) * scale['x'])+cur.left
+        y = cur.y/2-((dev.y/2-y) * scale['y'])+cur.top
         return x, y
 
     @staticmethod
-    def top(x, y, dev, cur, mainPoint_scale):
-        x = cur.x / 2 - ((dev.x / 2 - x) * mainPoint_scale['x']) + cur.left
-        y = y * mainPoint_scale['y'] + cur.top
+    def top(x, y, dev, cur, scale):
+        x = cur.x / 2 - ((dev.x / 2 - x) * scale['x']) + cur.left
+        y = y * scale['y'] + cur.top
         return x, y
 
     @staticmethod
-    def Bottom(x, y, dev, cur, mainPoint_scale):
-        x = cur.x / 2 - ((dev.x / 2 - x) * mainPoint_scale['x']) + cur.left
-        y = cur.y - ((dev.y - y) * mainPoint_scale['y']) + cur.top
+    def Bottom(x, y, dev, cur, scale):
+        x = cur.x / 2 - ((dev.x / 2 - x) * scale['x']) + cur.left
+        y = cur.y - ((dev.y - y) * scale['y']) + cur.top
         return x, y
 
     @staticmethod
-    def Left_top(x, y, dev, cur, mainPoint_scale):
-        x = x * mainPoint_scale['x'] + cur.left
-        y = y * mainPoint_scale['y'] + cur.top
+    def Left_top(x, y, dev, cur, scale):
+        x = x * scale['x'] + cur.left
+        y = y * scale['y'] + cur.top
         return x, y
 
     @staticmethod
-    def Left_bottom(x, y, dev, cur, mainPoint_scale):
-        x = x * mainPoint_scale['x'] + cur.left
-        y = cur.y - ((dev.y - y) * mainPoint_scale['y']) + cur.top
+    def Left_bottom(x, y, dev, cur, scale):
+        x = x * scale['x'] + cur.left
+        y = cur.y - ((dev.y - y) * scale['y']) + cur.top
         return x, y
 
     @staticmethod
-    def Right_top(x, y, dev, cur, mainPoint_scale):
-        x = cur.x - ((dev.x - x) * mainPoint_scale['x']) + cur.left
-        y = y * mainPoint_scale['y'] + cur.top
+    def Right_top(x, y, dev, cur, scale):
+        x = cur.x - ((dev.x - x) * scale['x']) + cur.left
+        y = y * scale['y'] + cur.top
         return x, y
 
     @staticmethod
-    def Right_bottom(x, y, dev, cur, mainPoint_scale):
+    def Right_bottom(x, y, dev, cur, scale):
         """锚点右下"""
-        x = cur.x - ((dev.x-x)*mainPoint_scale['x']) + cur.left
-        y = cur.y - ((dev.y-y)*mainPoint_scale['y']) + cur.top
+        x = cur.x - ((dev.x-x)*scale['x']) + cur.left
+        y = cur.y - ((dev.y-y)*scale['y']) + cur.top
         return x, y
 
 
-class screen_display_type(BaseModel):
+class ScreenDisplay(BaseModel):
     """
         top, bottom为上下黑边, left和right为左右黑边, widht为宽, height为高
         width需要大于height
@@ -289,15 +289,15 @@ class screen_display_type(BaseModel):
     y = 0
 
 
-class scale_mode_type(BaseModel):
+class ScaleMode(BaseModel):
     x = 'height'
     y = 'height'
 
 
 class Anchor(object):
-    def __init__(self, dev: screen_display_type, cur: screen_display_type,
-                 orientation: int, mainPoint_scale_mode: scale_mode_type = scale_mode_type(),
-                 appurtenant_scale_mode: scale_mode_type = scale_mode_type()):
+    def __init__(self, dev: ScreenDisplay, cur: ScreenDisplay,
+                 orientation: int, mainpoint_scale_mode: ScaleMode = ScaleMode(),
+                 appurtenant_scale_mode: ScaleMode = ScaleMode()):
         """
         dev/cur 结构 [
             width: int
@@ -343,8 +343,8 @@ class Anchor(object):
 
         # mainPoint_scale_mode x,y:'width','height'
         self.mainPoint_scale = {
-            'x': check_scale_mode(mode=mainPoint_scale_mode.x, scale_x=scale_x, scale_y=scale_y),
-            'y': check_scale_mode(mode=mainPoint_scale_mode.y, scale_x=scale_x, scale_y=scale_y),
+            'x': check_scale_mode(mode=mainpoint_scale_mode.x, scale_x=scale_x, scale_y=scale_y),
+            'y': check_scale_mode(mode=mainpoint_scale_mode.y, scale_x=scale_x, scale_y=scale_y),
         }
         # appurtenant_scale_mode x,y:'width','height'
         self.appurtenant_scale = {
@@ -384,7 +384,7 @@ class Anchor(object):
 
     def _count_anchor_point(self, point):
         """计算锚点坐标"""
-        anchor_fun = getattr(Anchor_transform, point.anchor_mode)
+        anchor_fun = getattr(Anchor, point.anchor_mode)
         x = point.anchor_x - self.dev.left
         y = point.anchor_y - self.dev.top
         x, y = anchor_fun(x, y, self.dev, self.cur, self.mainPoint_scale)

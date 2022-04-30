@@ -2,11 +2,14 @@
 import cv2
 import numpy as np
 
-from typing import Tuple, Union
-
 from .constant import Place, SHOW_INDEX
 from .coordinate import Rect, Size
 from .utils.api import read_image, bytes_2_img, cvType_to_npType, npType_to_cvType
+
+try:
+    cv2.cuda.GpuMat()
+except AttributeError:
+    cv2.cuda.GpuMat = cv2.cuda_GpuMat
 
 
 class _Image(object):

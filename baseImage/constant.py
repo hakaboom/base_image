@@ -14,8 +14,10 @@ class Place(object):
 
 if cv2.cuda.getCudaEnabledDeviceCount() > 0:
     CUDA_Flag = True
+    Default_Stream = cv2.cuda.Stream()
 else:
     CUDA_Flag = False
+    Default_Stream = None
 
 
 operations = {

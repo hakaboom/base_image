@@ -178,11 +178,7 @@ class _Image(object):
 
         elif place == Place.GpuMat:
             if isinstance(data, (np.ndarray, cv2.Mat, cv2.UMat)):
-                if type(data) == cv2.UMat:
-                    data = data.get()
-                mat = cv2.cuda.GpuMat(data.shape[::-1][1:])
-                mat.upload(data)
-                data = mat
+                data = cv2.cuda.GpuMat(data)
             elif isinstance(data, cv2.cuda.GpuMat):
                 pass
 
@@ -288,12 +284,13 @@ class Image(_Image):
         clone = kwargs.pop('clone', True)
         return Image(data=data, read_mode=self._read_mode, dtype=self.dtype, place=self.place, clone=clone)
 
-    def rotate(self, code):
+    def rotate(self, code, stream=None):
         """
         旋转图片
 
         Args:
             code: 可选90度180度270度(顺时针)
+            stream: cuda流
 
         Returns:
             Image: 旋转后的图片
@@ -317,12 +314,25 @@ class Image(_Image):
                 angle = 270
                 offset_y = 0
                 offset_x = size[0]
-            data = cv2.cuda.rotate(self.data, size, angle, xShift=offset_x, yShift=offset_y)
+            data = cv2.cuda.rotate(self.data, size, angle, xShift=offset_x, yShift=offset_y, stream=stream)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
 
     def resize(self, *args, **kwargs):
+        """
+        图片缩放
+
+        Args:
+            w: 宽
+            h: 高
+            size: (w,h)
+            code: 差值方法
+            stream: cuda流
+
+        Returns:
+            缩放后的图片
+        """
         code = kwargs.get('code', cv2.INTER_LINEAR)
 
         if kwargs.get('size'):
@@ -366,7 +376,7 @@ class Image(_Image):
 
         return self._resize(w=w, h=h, code=code)
 
-    def _resize(self, w, h, code=cv2.INTER_LINEAR):
+    def _resize(self, w, h, code=cv2.INTER_LINEAR, stream=None):
         size = (w, h)
         if self.place == Place.Mat:
             data = cv2.resize(self.data, size, interpolation=code)  # return: np.ndarray
@@ -374,18 +384,18 @@ class Image(_Image):
         elif self.place in (Place.Ndarray, Place.UMat):
             data = cv2.resize(self.data, size, interpolation=code)
         elif self.place == Place.GpuMat:
-            data = cv2.cuda.resize(self.data, size, interpolation=code)
+            data = cv2.cuda.resize(self.data, size, interpolation=code, stream=stream)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
 
-    def cvtColor(self, code):
+    def cvtColor(self, code, stream=None):
         """
         转换图片颜色空间
 
         Args:
-            code(int): 颜色转换代码
-                https://docs.opencv.org/4.x/d8/d01/group__imgproc__color__conversions.html#ga4e0972be5de079fed4e3a10e24ef5ef0
+            code(int): 颜色转换代码 https://docs.opencv.org/4.x/d8/d01/group__imgproc__color__conversions.html#ga4e0972be5de079fed4e3a10e24ef5ef0
+            stream: cuda流
 
         Returns:
             Image: 转换后的新图片
@@ -396,13 +406,13 @@ class Image(_Image):
         elif self.place in (Place.Ndarray, Place.UMat):
             data = cv2.cvtColor(self.data, code)
         elif self.place == Place.GpuMat:
-            data = cv2.cuda.cvtColor(self.data, code)
+            data = cv2.cuda.cvtColor(self.data, code, stream=stream)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
 
         return self._clone_with_params(data, clone=False)
 
-    def crop(self, rect: Rect):
+    def crop(self, rect):
         """
         区域范围截图
 
@@ -429,7 +439,7 @@ class Image(_Image):
 
         return self._clone_with_params(data, clone=False)
 
-    def threshold(self, thresh=0, maxval=255, code=cv2.THRESH_OTSU):
+    def threshold(self, thresh=0, maxval=255, code=cv2.THRESH_OTSU, stream=None):
         """
         图片二值化
 
@@ -437,6 +447,7 @@ class Image(_Image):
             thresh: 阈值
             maxval: 最大值
             code: type of the threshold operation
+            stream: cuda流
 
         Returns:
              Image: 二值化后的图片
@@ -451,7 +462,7 @@ class Image(_Image):
                 # cuda threshold不支持这两种方法,需要转换
                 _, data = cv2.threshold(self.data.download(), thresh, maxval, code)
             else:
-                _, data = cv2.cuda.threshold(self.data, thresh, maxval, code)
+                _, data = cv2.cuda.threshold(self.data, thresh, maxval, code, stream=stream)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
@@ -480,7 +491,7 @@ class Image(_Image):
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
 
-    def copyMakeBorder(self, top, bottom, left, right, borderType):
+    def copyMakeBorder(self, top, bottom, left, right, borderType, stream=None):
         """
         扩充边缘
 
@@ -490,6 +501,7 @@ class Image(_Image):
             left(int): 左扩充大小
             right(int): 右扩充大小
             borderType(int): 边缘扩充类型
+            stream: cuda流
 
         Returns:
             扩充后的图像
@@ -497,19 +509,20 @@ class Image(_Image):
         if self.place in (Place.Mat, Place.Ndarray, Place.UMat):
             data = cv2.copyMakeBorder(self.data, top, bottom, left, right, borderType)
         elif self.place == Place.GpuMat:
-            data = cv2.cuda.copyMakeBorder(self.data, top, bottom, left, right, borderType)
+            data = cv2.cuda.copyMakeBorder(self.data, top, bottom, left, right, borderType, stream=stream)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
 
-    def gaussianBlur(self, size=(11, 11), sigma=1.5, borderType=cv2.BORDER_DEFAULT):
+    def gaussianBlur(self, size=(11, 11), sigma=1.5, borderType=cv2.BORDER_DEFAULT, stream=None):
         """
         使用高斯滤镜模糊图像
 
         Args:
             size(tuple): 高斯核大小
             sigma(int|float): 高斯核标准差
-            borderType(int): pixel extrapolation method,
+            borderType(int): pixel extrapolation method
+            stream: cuda流
         Returns:
              Image: 高斯滤镜模糊图像
         """
@@ -526,12 +539,12 @@ class Image(_Image):
             # TODO: 感觉可以优化
             gaussian = cv2.cuda.createGaussianFilter(dtype, dtype, ksize=size, sigma1=sigma, sigma2=sigma,
                                                      rowBorderMode=borderType, columnBorderMode=borderType)
-            data = gaussian.apply(self.data)
+            data = gaussian.apply(self.data, stream=stream)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
 
-    def warpPerspective(self, matrix, size, flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0):
+    def warpPerspective(self, matrix, size, flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0, stream=None):
         """
         透视变换
 
@@ -541,6 +554,7 @@ class Image(_Image):
             flags: 插值方法
             borderMode: 像素外推法
             borderValue: 边界值
+            stream: cuda流
 
         Returns:
             透视变换后的图片
@@ -557,17 +571,18 @@ class Image(_Image):
         if self.place in (Place.Mat, Place.Ndarray, Place.UMat):
             data = cv2.warpPerspective(self.data, matrix, (w, h), flags=flags, borderMode=borderMode, borderValue=borderValue)
         elif self.place == Place.GpuMat:
-            data = cv2.cuda.warpPerspective(self.data, matrix, (w, h), flags=flags, borderMode=borderMode, borderValue=borderValue)
+            data = cv2.cuda.warpPerspective(self.data, matrix, (w, h), flags=flags, borderMode=borderMode, borderValue=borderValue, stream=stream)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
 
-    def bitwise_not(self, mask=None):
+    def bitwise_not(self, mask=None, stream=None):
         """
         反转图片颜色
 
         Args:
             mask: 掩码
+            stream: cuda流
 
         Returns:
              Image: 反转后的图片
@@ -575,7 +590,7 @@ class Image(_Image):
         if self.place in (Place.Mat, Place.Ndarray, Place.UMat):
             data = cv2.bitwise_not(self.data, mask=mask)
         elif self.place == Place.GpuMat:
-            data = cv2.cuda.bitwise_not(self.data, mask=mask)
+            data = cv2.cuda.bitwise_not(self.data, mask=mask, stream=stream)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
 
@@ -620,9 +635,12 @@ class Image(_Image):
         elif isinstance(data, cv2.cuda.GpuMat):
             cv2.imwrite(file_name, data.download())
 
-    def split(self):
+    def split(self, stream=None):
         """
         拆分图像通道
+
+        Args:
+            stream: cuda流
 
         Returns:
             拆分后的图像数据,不会对数据包装处理
@@ -630,7 +648,7 @@ class Image(_Image):
         if self.place in (Place.Mat, Place.Ndarray, Place.UMat):
             data = cv2.split(self.data)
         elif self.place == Place.GpuMat:
-            data = cv2.cuda.split(self.data)
+            data = cv2.cuda.split(self.data, stream=stream)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return data

@@ -25,6 +25,7 @@ class TestImage(unittest.TestCase):
         else:
             self.place_list = [(Place.Ndarray, np.ndarray), (Place.Mat, cv2.Mat), (Place.UMat, cv2.UMat)]
         self.dtype_list = [np.uint8, np.int8, np.uint16, np.int16, np.int32, np.float32, np.float64]
+        self.stream = cv2.cuda.Stream()
 
     def test_create(self):
         for place, ptype in self.place_list:
@@ -90,7 +91,7 @@ class TestImage(unittest.TestCase):
     def test_resize(self):
         for place, ptype in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
-            new_img = img.resize(400, 400, cv2.INTER_AREA)
+            new_img = img.resize(400, 400, cv2.INTER_AREA, stream=self.stream)
 
             self.assertEqual(new_img.size, (400, 400))
             self.assertNotEqual(id(img.data), id(new_img.data))
@@ -102,7 +103,7 @@ class TestImage(unittest.TestCase):
         for place, ptype in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             for code, channels in codes:
-                new_img = img.cvtColor(code)
+                new_img = img.cvtColor(code, stream=self.stream)
 
                 self.assertEqual(new_img.channels, channels)
                 self.assertNotEqual(id(img.data), id(new_img.data))
@@ -121,7 +122,7 @@ class TestImage(unittest.TestCase):
     def test_threshold(self):
         for place, ptype in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
-            new_img = img.cvtColor(cv2.COLOR_BGR2GRAY).threshold()
+            new_img = img.cvtColor(cv2.COLOR_BGR2GRAY, stream=self.stream).threshold(stream=self.stream)
 
             self.assertNotEqual(id(img.data), id(new_img.data))
             self.assertEqual(type(img.data), ptype)  # 判断类型是否一致
@@ -137,7 +138,7 @@ class TestImage(unittest.TestCase):
     def test_gaussianBlur(self):
         for place, ptype in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
-            new_img = img.gaussianBlur(size=(11, 11), sigma=1.5)
+            new_img = img.gaussianBlur(size=(11, 11), sigma=1.5, stream=self.stream)
 
             self.assertNotEqual(id(img.data), id(new_img.data))
             self.assertEqual(type(img.data), ptype)  # 判断类型是否一致
@@ -146,18 +147,18 @@ class TestImage(unittest.TestCase):
         for place, ptype in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             for code in (cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE, cv2.ROTATE_180):
-                img.rotate(code)
+                img.rotate(code, stream=self.stream)
 
     def test_split(self):
         for place, ptype in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
-            img_bgr = img.split()
+            img_bgr = img.split(stream=self.stream)
             # 好像没啥东西可以验证
 
     def test_copyMakeBorder(self):
         for place, ptype in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
-            new_img = img.copyMakeBorder(10, 10, 10, 10, cv2.BORDER_REPLICATE)
+            new_img = img.copyMakeBorder(10, 10, 10, 10, cv2.BORDER_REPLICATE, stream=self.stream)
 
             size = Size(img.size[0] + 20, img.size[1] + 20)
             self.assertEqual(new_img.size, (size.width, size.height))
@@ -171,7 +172,7 @@ class TestImage(unittest.TestCase):
         size = Size(50, 100)
         for place, ptype in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
-            new_img = img.warpPerspective(matrix, size=size)
+            new_img = img.warpPerspective(matrix, size=size, stream=self.stream)
 
             self.assertNotEqual(id(img.data), id(new_img.data))
             self.assertEqual(type(img.data), ptype)  # 判断类型是否一致

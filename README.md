@@ -1,6 +1,8 @@
 # base_image
 对opencv_python常用接口的二次开发
 
+建议 opencv version >= 4.5.5(不同opencv版本的python绑定,函数名可能会不同)
+
 # Example
 
 ## Create

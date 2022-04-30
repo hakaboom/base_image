@@ -10,11 +10,6 @@ import numpy as np
 import cv2
 
 
-try:
-    cv2.cuda.GpuMat()
-except AttributeError:
-    cv2.cuda.GpuMat = cv2.cuda_GpuMat
-
 IMAGEDIR = os.path.dirname(os.path.abspath(__file__)) + "/image"
 
 
@@ -22,7 +17,7 @@ class TestImage(unittest.TestCase):
     def setUp(self):
         if CUDA_Flag:
             self.place_list = [(Place.Ndarray, np.ndarray), (Place.Mat, cv2.Mat), (Place.UMat, cv2.UMat), 
-                               (Place.GpuMat, cv2.cuda_GpuMat)]
+                               (Place.GpuMat, cv2.cuda.GpuMat)]
         else:
             self.place_list = [(Place.Ndarray, np.ndarray), (Place.Mat, cv2.Mat), (Place.UMat, cv2.UMat)]
         self.dtype_list = [np.uint8, np.int8, np.uint16, np.int16, np.int32, np.float32, np.float64]
@@ -39,7 +34,7 @@ class TestImage(unittest.TestCase):
         for place, ptype in self.place_list:
             for dtype in self.dtype_list:
                 img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place, dtype=dtype)
-                if isinstance(img.data, cv2.cuda_GpuMat):
+                if isinstance(img.data, cv2.cuda.GpuMat):
                     self.assertEqual(cvType_to_npType(img.data.type(), channels=img.channels), dtype)
                 elif isinstance(img.data, cv2.UMat):
                     self.assertEqual(img.data.get().dtype, dtype)

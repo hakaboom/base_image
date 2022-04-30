@@ -9,12 +9,6 @@ from .coordinate import Rect, Size
 from .utils.api import read_image, bytes_2_img, cvType_to_npType, npType_to_cvType
 
 
-try:
-    cv2.cuda.GpuMat()
-except AttributeError:
-    cv2.cuda.GpuMat = cv2.cuda_GpuMat
-
-
 class _Image(object):
     def __init__(self, data, read_mode=cv2.IMREAD_COLOR, dtype=np.uint8, place=Place.Ndarray, clone=True):
         """

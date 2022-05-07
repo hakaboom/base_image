@@ -13,11 +13,15 @@ class Place(object):
 
 
 if cv2.cuda.getCudaEnabledDeviceCount() > 0:
-    CUDA_Flag = True
-    Default_Stream = cv2.cuda.Stream()
+    class Setting(object):
+        CUDA_Flag = True
+        Default_Stream = cv2.cuda.Stream()
+        Default_Pool = cv2.cuda.BufferPool(Default_Stream)
 else:
-    CUDA_Flag = False
-    Default_Stream = None
+    class Setting(object):
+        CUDA_Flag = False
+        Default_Stream = None
+        Default_Pool = None
 
 
 operations = {
@@ -29,9 +33,17 @@ operations = {
         'divide': cv2.divide,
         'merge': cv2.merge,
     },
+    'cuda': {
+        'multiply': None,
+        'subtract': None,
+        'add': None,
+        'pow': None,
+        'divide': None,
+        'merge': None,
+    }
 }
 
-if CUDA_Flag:
+if Setting.CUDA_Flag:
     operations['cuda'] = {
         'multiply': cv2.cuda.multiply,
         'subtract': cv2.cuda.subtract,

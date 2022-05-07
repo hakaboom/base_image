@@ -6,7 +6,7 @@ import numpy as np
 from baseImage.exceptions import ReadImageError
 
 
-def check_file(file_name: str):
+def check_file(file_name):
     """check file in path"""
     return os.path.isfile('{}'.format(file_name))
 
@@ -19,7 +19,7 @@ def check_image_valid(image):
         return False
 
 
-def read_image(filename: str, flags: int = cv2.IMREAD_COLOR):
+def read_image(filename, flags=cv2.IMREAD_COLOR):
     """cv2.imread的加强版"""
     if check_file(filename) is False:
         raise ReadImageError("File not found in path:'{}''".format(filename))
@@ -32,7 +32,7 @@ def read_image(filename: str, flags: int = cv2.IMREAD_COLOR):
         raise ReadImageError('cv2 decode Error, path:{}, flags={}', filename, flags)
 
 
-def bytes_2_img(byte) -> np.ndarray:
+def bytes_2_img(byte):
     """bytes转换成cv2可读取格式"""
     img = cv2.imdecode(np.array(bytearray(byte)), 1)
     if img is None:
@@ -41,7 +41,7 @@ def bytes_2_img(byte) -> np.ndarray:
     return img
 
 
-def npType_to_cvType(dtype: int, channels: int):
+def npType_to_cvType(dtype, channels):
     if dtype == np.uint8:
         num = 0
     elif dtype == np.int8:

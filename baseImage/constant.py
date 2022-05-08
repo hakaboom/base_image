@@ -13,16 +13,17 @@ class Place(object):
     UMat = cv2.UMat
 
 
+class Setting(object):
+    CUDA_Flag = False
+    Default_Stream = None
+    Default_Pool = None
+    Default_Place = Place.Ndarray
+
+
 if cv2.cuda.getCudaEnabledDeviceCount() > 0:
-    class Setting(object):
-        CUDA_Flag = True
-        Default_Stream = cv2.cuda.Stream()
-        Default_Pool = None
-else:
-    class Setting(object):
-        CUDA_Flag = False
-        Default_Stream = None
-        Default_Pool = None
+    Setting.CUDA_Flag = True
+    Setting.Default_Stream = cv2.cuda.Stream()
+    Setting.Default_Pool = None
 
 
 operations = {

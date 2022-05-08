@@ -8,7 +8,7 @@ from .utils.api import read_image, bytes_2_img, cvType_to_npType, npType_to_cvTy
 
 
 class BaseImage(object):
-    def __init__(self, data, read_mode=cv2.IMREAD_COLOR, dtype=np.uint8, place=Place.Ndarray, clone=True,
+    def __init__(self, data, read_mode=cv2.IMREAD_COLOR, dtype=np.uint8, place=None, clone=True,
                  bufferPool=None, stream=None):
         """
         基础构造函数
@@ -32,7 +32,7 @@ class BaseImage(object):
         self._data = data
         self._read_mode = read_mode
         self._dtype = dtype
-        self._place = place
+        self._place = place or Setting.Default_Place
         self._stream = stream or Setting.Default_Stream
         self._bufferPool = bufferPool or Setting.Default_Pool
 

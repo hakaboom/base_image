@@ -397,6 +397,7 @@ class Image(BaseImage):
             缩放后的图片
         """
         code = kwargs.get('code', cv2.INTER_LINEAR)
+        stream = kwargs.get('stream', None)
 
         if kwargs.get('size'):
             size = kwargs.get('size')
@@ -437,7 +438,7 @@ class Image(BaseImage):
         assert type(h) == int, '参数必须是int类型 args={}, kwargs={}'.format(args, kwargs)
         assert type(code) == int, '参数必须是int类型 args={}, kwargs={}'.format(args, kwargs)
 
-        return self._resize(w=w, h=h, code=code)
+        return self._resize(w=w, h=h, code=code, stream=stream)
 
     def _resize(self, w, h, code=cv2.INTER_LINEAR, stream=None):
         size = (w, h)
@@ -487,7 +488,7 @@ class Image(BaseImage):
         if self.place == Place.Ndarray:
             x_min, y_min = int(rect.tl.x), int(rect.tl.y)
             x_max, y_max = int(rect.br.x), int(rect.br.y)
-            data = self.data.copy()[y_min:y_max, x_min:x_max]
+            data = self.data[y_min:y_max, x_min:x_max].copy()
         elif self.place == Place.GpuMat:
             data = cv2.cuda.GpuMat(self.data, rect.totuple())
         elif self.place == Place.UMat:

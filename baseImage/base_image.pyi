@@ -49,6 +49,9 @@ class BaseImage(object):
     @property
     def dtype(self) -> Dtype: ...
 
+    @property
+    def cv_dtype(self) -> int: ...
+
     @staticmethod
     def get_cv_dtype(data: ImageType) -> int: ...
 

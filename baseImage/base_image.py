@@ -2,7 +2,7 @@
 import cv2
 import numpy as np
 
-from .constant import Place, SHOW_INDEX, Setting
+from .constant import Place, SHOW_INDEX, Setting, CUDA_CVT_CHANNELS
 from .coordinate import Rect, Size
 from .utils.api import read_image, bytes_2_img, cvType_to_npType, npType_to_cvType
 
@@ -97,7 +97,7 @@ class BaseImage(object):
 
         Args:
             data(np.ndarray/Umat/GpuMat/Size/(rows, clos)): 创建相同大小的矩阵
-            dtype: 图片数据类型
+            dtype: 图片数据类型(opencv)
 
         Returns:
             图片对象
@@ -114,6 +114,7 @@ class BaseImage(object):
             raise ValueError('Unknown param, data={}, dtype={}'.format(data, dtype))
 
         if self._bufferPool:
+            print(f"rows={rows}, cols={cols}")
             gpu_mat = self._bufferPool.getBuffer(rows=rows, cols=cols, type=dtype)
         else:
             gpu_mat = cv2.cuda.GpuMat(rows=rows, cols=cols, type=dtype)
@@ -195,7 +196,7 @@ class BaseImage(object):
         获取图片的长、宽、通道数
 
         Returns:
-            shape: (长,宽,通道数)
+            shape: (长,宽,通道数)/(rows, cols, channels)
         """
         return self.get_shape(self.data)
 
@@ -205,7 +206,7 @@ class BaseImage(object):
         获取图片的长、宽
 
         Returns:
-            shape: (长,宽)
+            shape: (长,宽)/(rows, cols)
         """
         return self.shape[:-1]
 
@@ -227,12 +228,22 @@ class BaseImage(object):
     @property
     def dtype(self):
         """
-        获取图片的数据类型
+        获取图片numpy格式的数据类型
 
         Returns:
-            dtype: 数据类型
+            dtype: 数据类型(numpy)
         """
         return self._dtype
+
+    @property
+    def cv_dtype(self):
+        """
+        获取图片opencv格式的数据类型
+
+        Returns:
+            dtype: 数据类型(opencv)
+        """
+        return self.get_cv_dtype(self.data)
 
     @property
     def place(self):
@@ -446,7 +457,8 @@ class Image(BaseImage):
             data = cv2.resize(self.data, size, interpolation=code)
         elif self.place == Place.GpuMat:
             stream = stream or self._stream
-            data = cv2.cuda.resize(self.data, size, interpolation=code, stream=stream)
+            dst = self._create_gpu_mat(Size(w, h), dtype=self.cv_dtype)
+            data = cv2.cuda.resize(self.data, size, interpolation=code, stream=stream, dst=dst)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
@@ -466,7 +478,8 @@ class Image(BaseImage):
             data = cv2.cvtColor(self.data, code)
         elif self.place == Place.GpuMat:
             stream = stream or self._stream
-            data = cv2.cuda.cvtColor(self.data, code, stream=stream)
+            dst = self._create_gpu_mat(data=self.data, dtype=npType_to_cvType(self.dtype, CUDA_CVT_CHANNELS[code]))
+            data = cv2.cuda.cvtColor(self.data, code, stream=stream, dst=dst)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
 
@@ -490,6 +503,7 @@ class Image(BaseImage):
             x_max, y_max = int(rect.br.x), int(rect.br.y)
             data = self.data[y_min:y_max, x_min:x_max].copy()
         elif self.place == Place.GpuMat:
+            # TODO
             data = cv2.cuda.GpuMat(self.data, rect.totuple())
         elif self.place == Place.UMat:
             data = cv2.UMat(self.data, rect.totuple())
@@ -519,7 +533,8 @@ class Image(BaseImage):
                 _, data = cv2.threshold(self.data.download(), thresh, maxval, code)
             else:
                 stream = stream or self._stream
-                _, data = cv2.cuda.threshold(self.data, thresh, maxval, code, stream=stream)
+                dst = self._create_gpu_mat(data=self.data, dtype=npType_to_cvType(self.dtype, 1))
+                _, data = cv2.cuda.threshold(self.data, thresh, maxval, code, stream=stream, dst=dst)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
@@ -567,7 +582,9 @@ class Image(BaseImage):
             data = cv2.copyMakeBorder(self.data, top, bottom, left, right, borderType)
         elif self.place == Place.GpuMat:
             stream = stream or self._stream
-            data = cv2.cuda.copyMakeBorder(self.data, top, bottom, left, right, borderType, stream=stream)
+            size = Size(self.size[0] + left + right, self.size[1] + top + bottom)
+            dst = self._create_gpu_mat(size, dtype=self.cv_dtype)
+            data = cv2.cuda.copyMakeBorder(self.data, top, bottom, left, right, borderType, stream=stream, dst=dst)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
@@ -595,7 +612,8 @@ class Image(BaseImage):
             stream = stream or self._stream
             gaussian = cv2.cuda.createGaussianFilter(dtype, dtype, ksize=size, sigma1=sigma, sigma2=sigma,
                                                      rowBorderMode=borderType, columnBorderMode=borderType)
-            data = gaussian.apply(self.data, stream=stream)
+            dst = self._create_gpu_mat(self.data, dtype=self.cv_dtype)
+            data = gaussian.apply(self.data, stream=stream, dst=dst)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
@@ -628,7 +646,9 @@ class Image(BaseImage):
             data = cv2.warpPerspective(self.data, matrix, (w, h), flags=flags, borderMode=borderMode, borderValue=borderValue)
         elif self.place == Place.GpuMat:
             stream = stream or self._stream
-            data = cv2.cuda.warpPerspective(self.data, matrix, (w, h), flags=flags, borderMode=borderMode, borderValue=borderValue, stream=stream)
+            dst = self._create_gpu_mat(Size(w, h), dtype=self.cv_dtype)
+            data = cv2.cuda.warpPerspective(self.data, matrix, (w, h), flags=flags, dst=dst,
+                                            borderMode=borderMode, borderValue=borderValue, stream=stream)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
@@ -648,7 +668,8 @@ class Image(BaseImage):
             data = cv2.bitwise_not(self.data, mask=mask)
         elif self.place == Place.GpuMat:
             stream = stream or self._stream
-            data = cv2.cuda.bitwise_not(self.data, mask=mask, stream=stream)
+            dst = self._create_gpu_mat(self.data, dtype=self.cv_dtype)
+            data = cv2.cuda.bitwise_not(self.data, mask=mask, stream=stream, dst=dst)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
 
@@ -707,6 +728,7 @@ class Image(BaseImage):
             data = cv2.split(self.data)
         elif self.place == Place.GpuMat:
             stream = stream or self._stream
+            # TODO
             data = cv2.cuda.split(self.data, stream=stream)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))

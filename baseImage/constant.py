@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 import cv2
+import numpy as np
+
 from .utils.api import AutoIncrement
 
 SHOW_INDEX = AutoIncrement()
 
 
 class Place(object):
-    Ndarray = 0
-    Mat = 1
-    GpuMat = 2
-    UMat = 3
+    Ndarray = np.ndarray
+    GpuMat = cv2.cuda.GpuMat
+    UMat = cv2.UMat
 
 
 if cv2.cuda.getCudaEnabledDeviceCount() > 0:

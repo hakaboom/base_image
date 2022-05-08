@@ -29,7 +29,6 @@ from baseImage import Image
 from baseImage.constant import Place
     
 Image(data='tests/image/0.png', place=Place.Ndarray)  # 使用numpy
-Image(data='tests/image/0.png', place=Place.Mat)  # 使用Mat
 Image(data='tests/image/0.png', place=Place.UMat)  # 使用Umat
 Image(data='tests/image/0.png', place=Place.GpuMat)  # 使用cuda
 ```
@@ -107,8 +106,8 @@ print(img.dtype)
 from baseImage import Image
 from baseImage.constant import Place
 
-img = Image(data='tests/image/0.png', place=Place.Mat)
-print(img.place == Place.Mat)
+img = Image(data='tests/image/0.png', place=Place.Ndarray)
+print(img.place == Place.Ndarray)
 # expect output
 #       True
 ```

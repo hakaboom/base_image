@@ -37,7 +37,7 @@ class TestImage(unittest.TestCase):
 
     def assertImagePtrNotEqual(self, img: Image, new_img: Image):
         """
-        判断两个图片的数据,内存地址不相等
+        判断两个图片的数据,内存指针不相等
         """
         self.assertEqual(img.place, new_img.place)
         if img.place == Place.Ndarray:
@@ -151,6 +151,8 @@ class TestImage(unittest.TestCase):
             img.rectangle(rect=Rect(100, 100, 200, 200))
             img.rectangle(rect=Rect(500, 500, 100, 100), color=(255, 255, 255), thickness=0)
 
+            self.assertPlaceEqual(img, place)
+
     def test_gaussianBlur(self):
         for place in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
@@ -163,7 +165,10 @@ class TestImage(unittest.TestCase):
         for place in self.place_list:
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             for code in (cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE, cv2.ROTATE_180):
-                img.rotate(code)
+                new_img = img.rotate(code)
+
+                self.assertImagePtrNotEqual(img, new_img)
+                self.assertPlaceEqual(new_img, place)
 
     def test_split(self):
         for place in self.place_list:

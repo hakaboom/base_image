@@ -10,30 +10,37 @@ from .coordinate import Rect, Size
 
 Dtype = Union[Type[np.uint8], Type[np.int8], Type[np.uint16], Type[np.int16], Type[np.int32], Type[np.float32], Type[np.float64]]
 Stream = Optional[cv2.cuda.Stream]
+Shape = Union[Tuple[int, int, int], List[int, int, int]]
+ImageType = Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat, Image]
 
 
-class _Image(object):
+class BaseImage(object):
     _data: Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat]
     _read_mode: int
     _dtype: Dtype
     _place: int
-    def __init__(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat, Image],
-                 read_mode: int = cv2.IMREAD_COLOR,
-                 dtype: Dtype = np.uint8,
-                 place: int = Place.Ndarray, clone: bool = True): ...
+    _stream: Stream
+    _bufferPool: Optional[cv2.cuda.BufferPool]
+    def __init__(self, data: Union[str, bytes, ImageType], read_mode: int = cv2.IMREAD_COLOR,  dtype: Dtype = np.uint8,
+                 place: int = Place.Ndarray, clone: bool = True,
+                 stream: Stream = None, bufferPool: cv2.cuda.BufferPool = None): ...
 
-    def write(self, data: Union[str, bytes, np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat, Image],
-              read_mode: int = None, dtype: Dtype = None, place=None, clone=True) -> None: ...
+    def write(self, data: Union[str, bytes, ImageType], read_mode: int = None, dtype: Dtype = None, place=None, clone=True) -> None: ...
 
     @classmethod
-    def _create_mat(cls, data: Union[np.ndarray, cv2.Mat], shape: Union[tuple, list]) -> cv2.Mat: ...
+    def _create_mat(cls, data: Union[np.ndarray, cv2.Mat], shape: Shape) -> cv2.Mat: ...
+
+    def _create_gpu_mat(self, data: Union[ImageType, Size, Tuple[int, int]], dtype: int) -> cv2.cuda.GpuMat: ...
 
     def dtype_convert(self, dtype: Dtype) -> None: ...
 
     def place_convert(self, place: int) -> None: ...
 
     @property
-    def shape(self) -> Tuple[int, int, int]: ...
+    def shape(self) -> Shape: ...
+
+    @staticmethod
+    def _get_shape(data) -> Shape: ...
 
     @property
     def size(self) -> Tuple[int, int]: ...
@@ -44,6 +51,9 @@ class _Image(object):
     @property
     def dtype(self): ...
 
+    @staticmethod
+    def _get_cv_dtype(data: ImageType) -> int: ...
+
     @property
     def place(self) -> int: ...
 
@@ -51,7 +61,7 @@ class _Image(object):
     def data(self) -> Union[np.ndarray, cv2.cuda.GpuMat, cv2.Mat, cv2.UMat]: ...
 
 
-class Image(_Image):
+class Image(BaseImage):
     def clone(self) -> Image:
         pass
 

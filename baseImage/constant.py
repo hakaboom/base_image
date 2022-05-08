@@ -16,7 +16,7 @@ if cv2.cuda.getCudaEnabledDeviceCount() > 0:
     class Setting(object):
         CUDA_Flag = True
         Default_Stream = cv2.cuda.Stream()
-        Default_Pool = cv2.cuda.BufferPool(Default_Stream)
+        Default_Pool = None
 else:
     class Setting(object):
         CUDA_Flag = False

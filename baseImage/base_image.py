@@ -120,7 +120,6 @@ class BaseImage(object):
             raise ValueError('Unknown param, data={}, dtype={}'.format(data, dtype))
 
         if self._bufferPool:
-            print(f"rows={rows}, cols={cols}")
             gpu_mat = self._bufferPool.getBuffer(rows=rows, cols=cols, type=dtype)
         else:
             gpu_mat = cv2.cuda.GpuMat(rows=rows, cols=cols, type=dtype)
@@ -566,7 +565,6 @@ class Image(BaseImage):
                 stream = stream or self._stream
                 dst = self._create_gpu_mat(data=self.data, dtype=self.cv_dtype)
                 _, data = cv2.cuda.threshold(self.data, thresh, maxval, code, stream=stream, dst=dst)
-                print(data.download().shape)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)

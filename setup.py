@@ -12,14 +12,14 @@ def install_requires():
     except ModuleNotFoundError:
         return [
             'numpy',
-            'opencv-python>=4.5.4.60',
+            'opencv-python>=4.5.5.64',
             'pydantic'
         ]
 
 
 setup(
     name='baseImage',
-    version='2.0.5',
+    version='2.1.0',
     author='hakaboom',
     author_email='1534225986@qq.com',
     license='Apache License 2.0',

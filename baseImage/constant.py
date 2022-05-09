@@ -9,7 +9,7 @@ SHOW_INDEX = AutoIncrement()
 
 class Place(object):
     Ndarray = np.ndarray
-    GpuMat = cv2.cuda.GpuMat
+    GpuMat = None
     UMat = cv2.UMat
 
 
@@ -22,6 +22,7 @@ class Setting(object):
 
 if cv2.cuda.getCudaEnabledDeviceCount() > 0:
     Setting.CUDA_Flag = True
+    Place.GpuMat = cv2.cuda.GpuMat
 
 
 operations = {

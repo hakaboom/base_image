@@ -9,10 +9,6 @@ import os
 import numpy as np
 import cv2
 
-try:
-    cv2.cuda.GpuMat()
-except AttributeError:
-    cv2.cuda.GpuMat = cv2.cuda_GpuMat
 
 IMAGEDIR = os.path.dirname(os.path.abspath(__file__)) + "/image"
 

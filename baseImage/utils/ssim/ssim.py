@@ -1,5 +1,5 @@
 from baseImage import Image, Rect
-from baseImage.constant import Place, operations, CUDA_Flag
+from baseImage.constant import Place, operations, Setting
 
 import cv2
 import numpy as np
@@ -38,7 +38,7 @@ class SSIM(object):
         self.cov_norm = cov_norm
         self.gaussian_args = {'size': (win_size, win_size), 'sigma': sigma, 'borderType': cv2.BORDER_REFLECT}
 
-        if CUDA_Flag:
+        if Setting.CUDA_Flag:
             self._buffer_cuda_mat()
 
     def _buffer_cuda_mat(self):

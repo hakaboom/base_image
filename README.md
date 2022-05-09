@@ -19,9 +19,23 @@ Image(data='tests/image/0.png')  # 使用默认方式创建
 
 - 使用place参数,修改数据格式
   - Ndarray: 格式为numpy.ndarray格式
-  - Mat: 和numpy基本一致
   - Umat: python的绑定不多,没有ndarray灵活,可以用于opencl加速
   - GpuMat: opencv的cuda格式,需要注意显存消耗
+    - 可以通过常量`Default_Pool`设定缓冲区
+
+    ```python
+    import cv2
+    from baseImage import Setting
+    
+    cv2.cuda.setBufferPoolUsage(True)
+    cv2.cuda.setBufferPoolConfig(cv2.cuda.getDevice(), 1024 * 1024 * (3 + 3), 1)
+    
+    stream = cv2.cuda.Stream()
+    pool = cv2.cuda.BufferPool(stream)
+    
+    Setting.Default_Stream = stream
+    Setting.Default_Pool = pool
+    ```
 
 ```python
 import cv2
@@ -29,7 +43,6 @@ from baseImage import Image
 from baseImage.constant import Place
     
 Image(data='tests/image/0.png', place=Place.Ndarray)  # 使用numpy
-Image(data='tests/image/0.png', place=Place.Mat)  # 使用Mat
 Image(data='tests/image/0.png', place=Place.UMat)  # 使用Umat
 Image(data='tests/image/0.png', place=Place.GpuMat)  # 使用cuda
 ```
@@ -107,8 +120,8 @@ print(img.dtype)
 from baseImage import Image
 from baseImage.constant import Place
 
-img = Image(data='tests/image/0.png', place=Place.Mat)
-print(img.place == Place.Mat)
+img = Image(data='tests/image/0.png', place=Place.Ndarray)
+print(img.place == Place.Ndarray)
 # expect output
 #       True
 ```

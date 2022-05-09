@@ -400,7 +400,8 @@ class Image(BaseImage):
                 angle = 270
                 offset_y = 0
                 offset_x = size[0]
-            data = cv2.cuda.rotate(self.data, size, angle, xShift=offset_x, yShift=offset_y, stream=stream)
+            dst = self._create_gpu_mat(size[::-1], dtype=self.cv_dtype)
+            data = cv2.cuda.rotate(self.data, size, angle, xShift=offset_x, yShift=offset_y, stream=stream, dst=dst)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)
@@ -554,8 +555,9 @@ class Image(BaseImage):
                 _, data = cv2.threshold(self.data.download(), thresh, maxval, code)
             else:
                 stream = stream or self._stream
-                dst = self._create_gpu_mat(data=self.data, dtype=npType_to_cvType(self.dtype, 1))
+                dst = self._create_gpu_mat(data=self.data, dtype=self.cv_dtype)
                 _, data = cv2.cuda.threshold(self.data, thresh, maxval, code, stream=stream, dst=dst)
+                print(data.download().shape)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return self._clone_with_params(data, clone=False)

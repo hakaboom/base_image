@@ -22,8 +22,6 @@ class Setting(object):
 
 if cv2.cuda.getCudaEnabledDeviceCount() > 0:
     Setting.CUDA_Flag = True
-    Setting.Default_Stream = cv2.cuda.Stream()
-    Setting.Default_Pool = None
 
 
 operations = {

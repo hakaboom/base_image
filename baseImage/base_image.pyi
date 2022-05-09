@@ -52,6 +52,9 @@ class BaseImage(object):
     @property
     def cv_dtype(self) -> int: ...
 
+    @property
+    def cv_dtype_no_channels(self) -> int: ...
+
     @staticmethod
     def get_cv_dtype(data: ImageType) -> int: ...
 

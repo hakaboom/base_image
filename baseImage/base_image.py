@@ -246,6 +246,18 @@ class BaseImage(object):
         return self.get_cv_dtype(self.data)
 
     @property
+    def cv_dtype_no_channels(self):
+        """
+        获取图片opencv格式的数据类型(不带通道数)
+
+        Returns:
+            dtype: 不带通道数的数据类型(opencv)
+        """
+        dtype = self.get_cv_dtype(self.data)
+        channels = self.channels
+        return dtype - ((channels - 1) * 8)
+
+    @property
     def place(self):
         return self._place
 
@@ -503,8 +515,17 @@ class Image(BaseImage):
             x_max, y_max = int(rect.br.x), int(rect.br.y)
             data = self.data[y_min:y_max, x_min:x_max].copy()
         elif self.place == Place.GpuMat:
-            # TODO
-            data = cv2.cuda.GpuMat(self.data, rect.totuple())
+            """
+            根据GpuMat的构造函数,crop_mat没有对数据进行拷贝,只是修改了数据索引的起点和终点
+            但是会导致引用计数+1.由此会导致显存的释放问题
+            例：
+                原图: mat占用3MB, crop_mat占用1MB.
+                如果裁剪完成后,释放mat了.由于引用计数没清零,因此还是会占用3MB.但是构造时不会产生新的内存申请.
+                我这边的逻辑是,拷贝一份crop_mat,因此会产生新的内存申请,最后在构造时,总共会占用4MB
+            """
+            crop_mat = cv2.cuda.GpuMat(self.data, rect.totuple())
+            data = self._create_gpu_mat(rect.size, dtype=self.cv_dtype)
+            crop_mat.copyTo(data)
         elif self.place == Place.UMat:
             data = cv2.UMat(self.data, rect.totuple())
         else:
@@ -728,8 +749,8 @@ class Image(BaseImage):
             data = cv2.split(self.data)
         elif self.place == Place.GpuMat:
             stream = stream or self._stream
-            # TODO
-            data = cv2.cuda.split(self.data, stream=stream)
+            dst = [self._create_gpu_mat(data=self.data, dtype=self.cv_dtype_no_channels) for i in range(self.channels)]
+            data = cv2.cuda.split(self.data, stream=stream, dst=dst)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return data

@@ -523,12 +523,15 @@ class Image(BaseImage):
             data = self.data[y_min:y_max, x_min:x_max].copy()
         elif self.place == Place.GpuMat:
             """
-            根据GpuMat的构造函数,crop_mat没有对数据进行拷贝,只是修改了数据索引的起点和终点
-            但是会导致引用计数+1.由此会导致显存的释放问题
+            cv2.cuda.GpuMat(gpuMat, roi) 这个构造函数在传入roi时,不会对gpuMat进行拷贝,具体的原因参考c++代码实现
+            这会造成,裁剪后,gpuMat指向的指针不会被释放.
+
             例：
-                原图: mat占用3MB, crop_mat占用1MB.
-                如果裁剪完成后,释放mat了.由于引用计数没清零,因此还是会占用3MB.但是构造时不会产生新的内存申请.
-                我这边的逻辑是,拷贝一份crop_mat,因此会产生新的内存申请,最后在构造时,总共会占用4MB
+                原图: gpuMat占用3MB, crop_mat占用1MB.
+                不拷贝: 裁剪完成后,占用显存3MB.
+                       释放gpuMat后,仍然占用3MB
+                拷贝: 裁剪完成后,占用显存4MB(gpuMat+crop_mat).
+                     释放gpuMat后,占用1MB(4MB-gpuMat)
             """
             crop_mat = cv2.cuda.GpuMat(self.data, rect.totuple())
             data = self._create_gpu_mat(rect.size, dtype=self.cv_dtype)

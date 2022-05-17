@@ -359,7 +359,8 @@ class Image(BaseImage):
         Returns:
             Image: 新图片对象
         """
-        return Image(data=self._data, read_mode=self._read_mode, dtype=self.dtype, place=self.place)
+        return Image(data=self._data, read_mode=self._read_mode, dtype=self.dtype, place=self.place,
+                     bufferPool=self._bufferPool, stream=self.stream)
 
     def _clone_with_params(self, data, **kwargs):
         """
@@ -372,7 +373,8 @@ class Image(BaseImage):
             Image: 新图片对象
         """
         clone = kwargs.pop('clone', True)
-        return Image(data=data, read_mode=self._read_mode, dtype=self.dtype, place=self.place, clone=clone)
+        return Image(data=data, read_mode=self._read_mode, dtype=self.dtype, place=self.place, clone=clone,
+                     bufferPool=self._bufferPool, stream=self.stream)
 
     def rotate(self, code, stream=None):
         """

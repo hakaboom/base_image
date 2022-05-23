@@ -38,27 +38,27 @@ class SSIM(object):
         self.cov_norm = cov_norm
         self.gaussian_args = {'size': (win_size, win_size), 'sigma': sigma, 'borderType': cv2.BORDER_REFLECT}
 
-        if Setting.CUDA_Flag:
-            self._buffer_cuda_mat()
-
-    def _buffer_cuda_mat(self):
-        # https://github.com/opencv/opencv/issues/18026
-        size = self.resize
-
-        cov_norm = np.empty(size, dtype=np.float32)
-        cov_norm.fill(self.cov_norm)
-        self._cuda_cov_norm = cv2.cuda.GpuMat(size, cv2.CV_32F)
-        self._cuda_cov_norm.upload(cov_norm)
-
-        C1 = np.empty(size, dtype=np.float32)
-        C1.fill(self.C1)
-        self._cuda_C1 = cv2.cuda.GpuMat(size, cv2.CV_32F)
-        self._cuda_C1.upload(C1)
-
-        C2 = np.empty(size, dtype=np.float32)
-        C2.fill(self.C2)
-        self._cuda_C2 = cv2.cuda.GpuMat(size, cv2.CV_32F)
-        self._cuda_C2.upload(C2)
+    #     if Setting.CUDA_Flag:
+    #         self._buffer_cuda_mat()
+    #
+    # def _buffer_cuda_mat(self):
+    #     # https://github.com/opencv/opencv/issues/18026
+    #     size = self.resize
+    #
+    #     cov_norm = np.empty(size, dtype=np.float32)
+    #     cov_norm.fill(self.cov_norm)
+    #     self._cuda_cov_norm = cv2.cuda.GpuMat(size, cv2.CV_32F)
+    #     self._cuda_cov_norm.upload(cov_norm)
+    #
+    #     C1 = np.empty(size, dtype=np.float32)
+    #     C1.fill(self.C1)
+    #     self._cuda_C1 = cv2.cuda.GpuMat(size, cv2.CV_32F)
+    #     self._cuda_C1.upload(C1)
+    #
+    #     C2 = np.empty(size, dtype=np.float32)
+    #     C2.fill(self.C2)
+    #     self._cuda_C2 = cv2.cuda.GpuMat(size, cv2.CV_32F)
+    #     self._cuda_C2.upload(C2)
 
     @classmethod
     def _image_check(cls, im1: Image, im2: Image):
@@ -160,10 +160,6 @@ class SSIM(object):
             add = operations['cuda']['add']
             divide = operations['cuda']['divide']
             pow = operations['cuda']['pow']
-
-            cov_norm = self._cuda_cov_norm
-            C1 = self._cuda_C1
-            C2 = self._cuda_C2
         else:
             multiply = operations['mat']['multiply']
             subtract = operations['mat']['subtract']
@@ -171,40 +167,29 @@ class SSIM(object):
             divide = operations['mat']['divide']
             pow = operations['mat']['pow']
 
-            cov_norm = self.cov_norm
-            C1 = self.C1
-            C2 = self.C2
+        cov_norm = self.cov_norm
+        C1 = self.C1
+        C2 = self.C2
 
         uxx = Image(data=multiply(im1.data, im1.data), **new_image_args).gaussianBlur(**self.gaussian_args).data
         uyy = Image(data=multiply(im2.data, im2.data), **new_image_args).gaussianBlur(**self.gaussian_args).data
         uxy = Image(data=multiply(im1.data, im2.data), **new_image_args).gaussianBlur(**self.gaussian_args).data
 
-        vx = multiply(cov_norm, subtract(uxx, multiply(ux, ux)))
-        vy = multiply(cov_norm, subtract(uyy, multiply(uy, uy)))
-        vxy = multiply(cov_norm, subtract(uxy, multiply(ux, uy)))
+        vx = multiply(subtract(multiply(ux, ux), uxx), cov_norm)
+        vy = multiply(subtract(multiply(uy, uy), uyy), cov_norm)
+        vxy = multiply(subtract(multiply(ux, uy), uxy), cov_norm)
 
-        if cuda_flag:
-            _A1 = multiply(ux, uy)
-            A1 = add(add(_A1, _A1), C1)
-            A2 = add(add(vxy, vxy), C2)
-            B1 = add(add(pow(ux, 2), pow(uy, 2)), C1)
-            B2 = add(add(vx, vy), C2)
-            D = multiply(B1, B2)
-            S = divide(multiply(A1, A2), D).download()
-        elif umat_flag:
-            A1 = add(multiply(2, multiply(ux, uy)), C1)
-            A2 = add(multiply(2, vxy), C2)
-            B1 = add(add(pow(ux, 2), pow(uy, 2)), C1)
-            B2 = add(add(vx, vy), C2)
-            D = multiply(B1, B2)
-            S = divide(multiply(A1, A2), D).get()
-        else:
-            A1 = add(multiply(2, multiply(ux, uy)), C1)
-            A2 = add(multiply(2, vxy), C2)
-            B1 = add(add(pow(ux, 2), pow(uy, 2)), C1)
-            B2 = add(add(vx, vy), C2)
-            D = multiply(B1, B2)
-            S = divide(multiply(A1, A2), D)
+        A1 = add(multiply(multiply(ux, uy), 2), C1)
+        A2 = add(multiply(vxy, 2), C2)
+        B1 = add(add(pow(ux, 2), pow(uy, 2)), C1)
+        B2 = add(add(vx, vy), C2)
+        D = multiply(B1, B2)
+        S = divide(multiply(A1, A2), D)
+
+        if umat_flag:
+            S = S.get()
+        elif cuda_flag:
+            S = S.download()
 
         pad = (self.win_size - 1) // 2
         r = Rect(pad, pad, (w - (2 * pad)), (h - (2 * pad)))

@@ -175,6 +175,8 @@ class SSIM(object):
         uyy = Image(data=multiply(im2.data, im2.data), **new_image_args).gaussianBlur(**self.gaussian_args).data
         uxy = Image(data=multiply(im1.data, im2.data), **new_image_args).gaussianBlur(**self.gaussian_args).data
 
+        # 官方的cuda python绑定有问题,目前没有修复, 需要用下面的commit才能使用
+        # https://github.com/hakaboom/opencv_contrib/commit/ed0a7d567ff4775fc933c889cf856146a3ea79be
         vx = multiply(subtract(multiply(ux, ux), uxx), cov_norm)
         vy = multiply(subtract(multiply(uy, uy), uyy), cov_norm)
         vxy = multiply(subtract(multiply(ux, uy), uxy), cov_norm)

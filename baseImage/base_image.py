@@ -178,7 +178,7 @@ class BaseImage(object):
         elif place == Place.GpuMat:
             if isinstance(data, (np.ndarray, cv2.UMat)):
                 gpu_mat = self._create_gpu_mat(data=data, dtype=self.get_cv_dtype(data))
-                gpu_mat.upload(data)
+                gpu_mat.upload(data, self.stream)
                 data = gpu_mat
             elif isinstance(data, cv2.cuda.GpuMat):
                 pass
@@ -591,7 +591,7 @@ class Image(BaseImage):
             cv2.rectangle(self.data, (pt1.x, pt1.y), (pt2.x, pt2.y), color=color, thickness=thickness, lineType=lineType)
         elif self.place == Place.GpuMat:
             data = cv2.rectangle(self.data.download(), (pt1.x, pt1.y), (pt2.x, pt2.y), color=color, thickness=thickness, lineType=lineType)
-            self.data.upload(data)
+            self.data.upload(data, self.stream)
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
 
@@ -765,3 +765,26 @@ class Image(BaseImage):
         else:
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
         return data
+
+    def calcHist(self, histSize, ranges, mask=None, accumulate=False, stream=None):
+        """
+        计算图像颜色直方图
+
+        Returns:
+            各通道的直方图数组
+        """
+        hists = []
+        data = self.data
+
+        if self.place == Place.GpuMat:
+            data = self.data.download(stream=stream)
+
+        for i in range(self.channels):
+            hists.append(cv2.calcHist([data], [i], mask=mask, histSize=histSize, ranges=ranges, accumulate=accumulate))
+            # stream = stream or self._stream
+            # data = self.split(stream)
+            # dst = [self._create_gpu_mat((1, 256), dtype=cv2.CV_32SC1) for i in range(self.channels)]
+            # for i in range(self.channels):
+            #     hists.append(cv2.cuda.calcHist(data[i], hist=dst[i], stream=stream))
+            # [np.rot90(i.download(), 3) for i in hists]
+        return hists

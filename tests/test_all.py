@@ -193,6 +193,13 @@ class TestImage(unittest.TestCase):
             self.assertImagePtrNotEqual(img, new_img)
             self.assertPlaceEqual(new_img, place)
 
+    def test_calcHist(self):
+        histSize = [256]
+        ranges = [0, 256]
+        for place in self.place_list:
+            img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
+            img.calcHist(histSize, ranges)
+
     def test_ssim(self):
         for place in self.place_list:
             im1 = Image(data=os.path.join(IMAGEDIR, '1.png'), dtype=np.float32, place=place)

@@ -1,9 +1,7 @@
 import numpy as np
-from typing import Tuple, Union, overload, Type, List, Optional
+import numpy.typing as npt
 
-
-Dtype = Union[Type[np.uint8], Type[np.int8], Type[np.uint16], Type[np.int16], Type[np.int32], Type[np.float32], Type[np.float64]]
-
+Dtype = npt.DTypeLike
 
 def check_file(file_name: str) -> bool: ...
 

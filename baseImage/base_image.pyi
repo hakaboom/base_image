@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import cv2
 import numpy as np
+import numpy.typing as npt
 
 from typing import Tuple, Union, overload, Type, List, Optional
 
@@ -8,7 +9,7 @@ from .constant import Place
 from .coordinate import Rect, Size
 
 
-Dtype = Union[Type[np.uint8], Type[np.int8], Type[np.uint16], Type[np.int16], Type[np.int32], Type[np.float32], Type[np.float64]]
+Dtype = npt.DTypeLike
 Stream = Optional[cv2.cuda.Stream]
 Shape = Union[Tuple[int, int, int], List[int, int, int]]
 ImageType = Union[np.ndarray, cv2.cuda.GpuMat, cv2.UMat, Image]
@@ -96,7 +97,7 @@ class Image(BaseImage):
 
     def copyMakeBorder(self, top: int, bottom: int, left: int, right: int, borderType: int, stream: Stream = None) -> Image: ...
 
-    def gaussianBlur(self, size: Tuple[int, int] = (0, 0), sigma: Union[int, float] = 1.5, borderType: int = cv2.BORDER_DEFAULT, stream: Stream = None) -> Image: ...
+    def gaussianBlur(self, size: Tuple[int, int] = (11, 11), sigma: Union[int, float] = 1.5, borderType: int = cv2.BORDER_DEFAULT, stream: Stream = None) -> Image: ...
 
     def warpPerspective(self, matrix: np.ndarray, size: Size, flags: int = cv2.INTER_LINEAR, borderMode: int = cv2.BORDER_CONSTANT, borderValue: int = 0, stream: Stream = None) -> Image: ...
 
@@ -107,3 +108,5 @@ class Image(BaseImage):
     def imwrite(self, fileName: str) -> None: ...
 
     def split(self, stream: Stream = None) -> Tuple[Union[np.ndarray, cv2.cuda.GpuMat, cv2.UMat], ...]: ...
+
+    def calcHist(self, histSize: List[int, ...], ranges: Union[Tuple[int, ...], List[int, ...]], mask=None, accumulate: bool = False, stream: Stream = None) -> List[npt.NDArray[np.float32], ...]: ...

@@ -200,6 +200,18 @@ class TestImage(unittest.TestCase):
             img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
             img.calcHist(histSize, ranges)
 
+    def test_inRange(self):
+        lowerb = (0, 0, 0)
+        upperb = (255, 255, 255)
+        for place in self.place_list:
+            img = Image(data=os.path.join(IMAGEDIR, '0.png'), place=place)
+            new_img = img.inRange(lowerb, upperb)
+
+            self.assertEqual(new_img.size, img.size)
+            self.assertImagePtrNotEqual(img, new_img)
+            self.assertPlaceEqual(new_img, place)
+            self.assertDTypeEqual(new_img, np.uint8)
+
     def test_ssim(self):
         for place in self.place_list:
             im1 = Image(data=os.path.join(IMAGEDIR, '1.png'), dtype=np.float32, place=place)

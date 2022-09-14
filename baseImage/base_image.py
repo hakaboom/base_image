@@ -770,6 +770,13 @@ class Image(BaseImage):
         """
         计算图像颜色直方图
 
+        Args:
+            histSize: 直方图每一个维度划分的柱条的数目
+            ranges: 取值区间
+            mask: 掩模
+            accumulate: 在多个图像时，是否累积计算像素值的个数
+            stream: cuda流
+
         Returns:
             各通道的直方图数组
         """
@@ -788,3 +795,26 @@ class Image(BaseImage):
             #     hists.append(cv2.cuda.calcHist(data[i], hist=dst[i], stream=stream))
             # [np.rot90(i.download(), 3) for i in hists]
         return hists
+
+    def inRange(self, lowerb, upperb, stream=None):
+        """
+        检查数组元素是否位于两个标量之间
+
+        Args:
+            lowerb: 下边界
+            upperb: 上边界
+            stream: cuda流
+
+        Returns:
+            二值化后的数组
+        """
+        if self.place in (Place.Ndarray, Place.UMat):
+            data = cv2.inRange(self.data, lowerb, upperb)
+        elif self.place == Place.GpuMat:
+            stream = stream or self._stream
+            dst = self._create_gpu_mat(data=self.data, dtype=cv2.CV_8UC1)
+            data = cv2.cuda.inRange(self.data, lowerb, upperb, dst=dst, stream=stream)
+        else:
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
+
+        return self._clone_with_params(data, clone=False)

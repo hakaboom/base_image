@@ -91,3 +91,9 @@ class AutoIncrement(object):
     def __call__(self):
         self._val += 1
         return self._val
+
+
+class InputImageArrayCheck(object):
+    """ 输入图片的类型检查 """
+    def __init__(self, dtype, place):
+        pass

@@ -13,21 +13,7 @@ class ImageDiff(object):
         """
         self.ssim = SSIM(resize=resize)
 
-    @classmethod
-    def _image_check(cls, im1, im2):
-        if im1.place != im2.place:
-            im2 = Image(im2, place=im1.place, dtype=np.float32)
-
-        if im1.dtype != np.float32:
-            im1 = Image(im1, place=im1.place, dtype=np.float32)
-
-        if im2.dtype != np.float32:
-            im2 = Image(im2, place=im2.place, dtype=np.float32)
-
-        return im1, im2
-
     def diff(self, im1: Image, im2: Image):
-        im1, im2 = self._image_check(im1, im2)
         return self._diff(im1, im2)
 
     def _diff(self, im1: Image, im2: Image, threshold: float = 0.95):

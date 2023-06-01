@@ -818,3 +818,72 @@ class Image(BaseImage):
             raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
 
         return self._clone_with_params(data, clone=False)
+
+    def multiply(self, src2, scale=1, dtype=-1, stream=None):
+        """
+        计算两个数组的每个元素缩放乘积
+
+        Args:
+            src2:
+            scale: 比例
+            dtype: 数组深度
+            stream: cuda流
+
+        Returns:
+            计算后的数组
+        """
+        if isinstance(src2, Image):
+            src2 = src2.data
+
+        if self.place in (Place.Ndarray, Place.UMat):
+            data = cv2.multiply(self.data, src2=src2, scale=scale, dtype=dtype)
+        elif self.place == Place.GpuMat:
+            stream = stream or self._stream
+            dst = self._create_gpu_mat(data=self.data, dtype=self.cv_dtype)
+            data = cv2.cuda.multiply(self.data, src2=src2, dst=dst, scale=scale, dtype=dtype, stream=stream)
+        else:
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
+
+        return self._clone_with_params(data, clone=False)
+
+    def sqrt(self, stream=None):
+        """
+        开平方
+
+        Args:
+            stream: cuda流
+
+        Returns:
+            计算后的数组
+        """
+        if self.place in (Place.Ndarray, Place.UMat):
+            data = cv2.sqrt(self.data)
+        elif self.place == Place.GpuMat:
+            stream = stream or self._stream
+            dst = self._create_gpu_mat(data=self.data, dtype=self.cv_dtype)
+            data = cv2.cuda.sqrt(self.data, dst=dst, stream=stream)
+        else:
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
+
+        return self._clone_with_params(data, clone=False)
+
+    def mean(self, mask=None):
+        """
+        计算数组平均数
+
+        Args:
+            mask: 掩码
+
+        Returns:
+            数组平均数
+        """
+        if self.place == Place.GpuMat:
+            data = self.data.download()
+        elif self.place in (Place.Ndarray, Place.UMat):
+            data = self.data
+        else:
+            raise TypeError("Unknown place:'{}', image_data={}, image_data_type".format(self.place, self.data, type(self.data)))
+
+        ret = cv2.mean(data, mask=mask)
+        return ret
+

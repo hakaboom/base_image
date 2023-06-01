@@ -18,19 +18,19 @@ class ImageDiff(object):
         if im1.place != im2.place:
             im2 = Image(im2, place=im1.place, dtype=np.float32)
 
-        if im1.dtype != np.float32:
-            im1 = Image(im1, place=im1.place, dtype=np.float32)
+        if im1.dtype != np.float64:
+            im1 = Image(im1, place=im1.place, dtype=np.float64)
 
-        if im2.dtype != np.float32:
-            im2 = Image(im2, place=im2.place, dtype=np.float32)
+        if im2.dtype != np.float64:
+            im2 = Image(im2, place=im2.place, dtype=np.float64)
 
         return im1, im2
 
     def diff(self, im1: Image, im2: Image):
-        im1, im2 = self._image_check(im1, im2)
+        # im1, im2 = self._image_check(im1, im2)
         return self._diff(im1, im2)
 
-    def _diff(self, im1: Image, im2: Image, threshold: float = 0.95):
+    def _diff(self, im1: Image, im2: Image, threshold: float = 0.70):
         """
         ssim对比,并找到差异区域
 
@@ -51,11 +51,10 @@ class ImageDiff(object):
 
         # 反色
         gary = gary.bitwise_not()
-        # Image(gary).imshow('gary')
 
         # 二值化
         thresh = gary.threshold(code=cv2.THRESH_BINARY, thresh=int(255 * (1 - threshold)), maxval=255)
-
+        # thresh.imshow('thresh')
         # 闭运算
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
         erosion = cv2.morphologyEx(thresh.data, cv2.MORPH_CLOSE, kernel)

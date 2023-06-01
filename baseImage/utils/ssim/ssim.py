@@ -7,7 +7,7 @@ from typing import Union, Optional, Tuple
 
 
 class SSIM(object):
-    def __init__(self, win_size: int = 11, data_range: int = 255, sigma: Union[int, float] = 1.5,
+    def __init__(self, win_size: int = 7, data_range: int = 255, sigma: Union[int, float] = 1.5,
                  use_sample_covariance=True, resize=(500, 500)):
         """
         使用ssim计算两张图片的相似度
@@ -22,7 +22,7 @@ class SSIM(object):
         self.win_size = win_size
         self.data_range = data_range
         self.sigma = sigma
-        self.dtype = np.float32
+        self.dtype = np.float64
         self.K1 = 0.01
         self.K2 = 0.03
         self.C1 = (self.K1 * self.data_range) ** 2
@@ -30,11 +30,13 @@ class SSIM(object):
         self.resize = resize
 
         NP = win_size ** 2
+
         # filter has already normalized by NP
         if use_sample_covariance:
             cov_norm = NP / (NP - 1)  # sample covariance
         else:
             cov_norm = 1.0  # population covariance to match Wang et. al. 2004
+
         self.cov_norm = cov_norm
         self.gaussian_args = {'size': (win_size, win_size), 'sigma': sigma, 'borderType': cv2.BORDER_REFLECT}
 
@@ -72,13 +74,13 @@ class SSIM(object):
             raise ValueError('图片大小一致, im1:{}, im2:{}'.format(im1.size, im2.size))
 
         if im1.place != im2.place:
-            im2 = Image(im2, place=im1.place, dtype=np.float32)
+            im2 = Image(im2, place=im1.place, dtype=np.float64)
 
-        if im1.dtype != np.float32:
-            im1 = Image(im1, place=im1.place, dtype=np.float32)
+        if im1.dtype != np.float64:
+            im1 = Image(im1, place=im1.place, dtype=np.float64)
 
-        if im2.dtype != np.float32:
-            im2 = Image(im2, place=im2.place, dtype=np.float32)
+        if im2.dtype != np.float64:
+            im2 = Image(im2, place=im2.place, dtype=np.float64)
         return im1, im2
 
     def ssim(self, im1: Image, im2: Image, full: bool = False) -> Tuple[float, Optional[Image]]:
@@ -177,9 +179,10 @@ class SSIM(object):
 
         # 官方的cuda python绑定有问题,目前没有修复, 需要用下面的commit才能使用
         # https://github.com/hakaboom/opencv_contrib/commit/ed0a7d567ff4775fc933c889cf856146a3ea79be
-        vx = multiply(subtract(multiply(ux, ux), uxx), cov_norm)
-        vy = multiply(subtract(multiply(uy, uy), uyy), cov_norm)
-        vxy = multiply(subtract(multiply(ux, uy), uxy), cov_norm)
+
+        vx = multiply(subtract(uxx, multiply(ux, ux)), cov_norm)
+        vy = multiply(subtract(uyy, multiply(uy, uy)), cov_norm)
+        vxy = multiply(subtract(uxy, multiply(ux, uy)), cov_norm)
 
         A1 = add(multiply(multiply(ux, uy), 2), C1)
         A2 = add(multiply(vxy, 2), C2)

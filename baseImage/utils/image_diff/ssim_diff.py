@@ -26,11 +26,10 @@ class ImageDiff(object):
 
         return im1, im2
 
-    def diff(self, im1: Image, im2: Image):
-        # im1, im2 = self._image_check(im1, im2)
-        return self._diff(im1, im2)
+    def diff(self, im1: Image, im2: Image, debug: bool = False):
+        return self._diff(im1, im2, debug=debug)
 
-    def _diff(self, im1: Image, im2: Image, threshold: float = 0.70):
+    def _diff(self, im1: Image, im2: Image, threshold: float = 0.70, debug: bool = False):
         """
         ssim对比,并找到差异区域
 
@@ -54,11 +53,14 @@ class ImageDiff(object):
 
         # 二值化
         thresh = gary.threshold(code=cv2.THRESH_BINARY, thresh=int(255 * (1 - threshold)), maxval=255)
-        # thresh.imshow('thresh')
+
         # 闭运算
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+        if thresh.place == cv2.cuda.GpuMat:
+            thresh = Image(thresh.data.download())
         erosion = cv2.morphologyEx(thresh.data, cv2.MORPH_CLOSE, kernel)
-        Image(erosion).imshow('erosion')
+        # erosion = cv2.morphologyEx(thresh.data, cv2.MORPH_OPEN, kernel, 1)
+
         # 寻找轮廓
         cnts, hierarchy = cv2.findContours(erosion, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -67,6 +69,12 @@ class ImageDiff(object):
             scale = np.array([im1.size[1]/self.ssim.resize[1], im1.size[0]/self.ssim.resize[0]])
             for index, cnt in enumerate(cnts):
                 cnts[index] = (cnt * scale).astype(np.int32)
+
+        if debug:
+            print(f"相似度:{mssim}")
+            score.imshow('score')
+            thresh.imshow('thresh')
+            Image(erosion).imshow('erosion')
 
         result = []
         for cnt in cnts:

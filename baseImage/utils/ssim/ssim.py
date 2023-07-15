@@ -22,7 +22,7 @@ class SSIM(object):
         self.win_size = win_size
         self.data_range = data_range
         self.sigma = sigma
-        self.dtype = np.float64
+        self.dtype = np.float32
         self.K1 = 0.01
         self.K2 = 0.03
         self.C1 = (self.K1 * self.data_range) ** 2
@@ -62,8 +62,7 @@ class SSIM(object):
     #     self._cuda_C2 = cv2.cuda.GpuMat(size, cv2.CV_32F)
     #     self._cuda_C2.upload(C2)
 
-    @classmethod
-    def _image_check(cls, im1: Image, im2: Image):
+    def _image_check(self, im1: Image, im2: Image):
         if not isinstance(im1, Image) and not isinstance(im2, Image):
             raise ValueError('im1 im2必须为Image类型, im1_type:{}, im2_type:{}'.format(type(im1), type(im2)))
 
@@ -73,14 +72,11 @@ class SSIM(object):
         if im1.size != im2.size:
             raise ValueError('图片大小一致, im1:{}, im2:{}'.format(im1.size, im2.size))
 
-        if im1.place != im2.place:
-            im2 = Image(im2, place=im1.place, dtype=np.float64)
+        if im1.dtype != self.dtype:
+            im1 = Image(im1, place=im1.place, dtype=self.dtype)
 
-        if im1.dtype != np.float64:
-            im1 = Image(im1, place=im1.place, dtype=np.float64)
-
-        if im2.dtype != np.float64:
-            im2 = Image(im2, place=im2.place, dtype=np.float64)
+        if im2.dtype != self.dtype:
+            im2 = Image(im2, place=im2.place, dtype=self.dtype)
         return im1, im2
 
     def ssim(self, im1: Image, im2: Image, full: bool = False) -> Tuple[float, Optional[Image]]:
@@ -97,9 +93,6 @@ class SSIM(object):
             S(Image): if full==True 完整的结构相似性图像。
         """
         im1, im2 = self._image_check(im1=im1, im2=im2)
-        size = self.resize[::-1]
-        im1 = im1.resize(*size)
-        im2 = im2.resize(*size)
 
         return self._ssim(im1=im1, im2=im2, full=full)
 
@@ -110,7 +103,7 @@ class SSIM(object):
         if nch > 1:
             im1 = im1.split()
             im2 = im2.split()
-            mssim = np.empty(nch, dtype=np.float64)
+            mssim = np.empty(nch, dtype=self.dtype)
             if full:
                 S = []
             # 分割通道,计算每个通道的相似度,最后取平均值
@@ -199,7 +192,7 @@ class SSIM(object):
         pad = (self.win_size - 1) // 2
         r = Rect(pad, pad, (w - (2 * pad)), (h - (2 * pad)))
 
-        mssim = Image(data=S, dtype=np.float64, place=Place.Ndarray, clone=False).crop(r).data
+        mssim = Image(data=S, dtype=self.dtype, place=Place.Ndarray, clone=False).crop(r).data
         mssim = cv2.mean(mssim)[0]
 
         if full:

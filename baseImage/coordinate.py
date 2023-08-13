@@ -5,7 +5,7 @@
 包含了锚点模式,适用于各种分辨率,刘海屏的坐标适配
 """
 import logging
-from typing import Union
+from typing import Union, ClassVar
 from pydantic import BaseModel
 
 
@@ -279,19 +279,19 @@ class ScreenDisplay(BaseModel):
         top, bottom为上下黑边, left和right为左右黑边, widht为宽, height为高
         width需要大于height
     """
-    width: int
-    height: int
-    top = 0
-    bottom = 0
-    left = 0
-    right = 0
-    x = 0
-    y = 0
+    width: ClassVar[int]
+    height: ClassVar[int]
+    top: ClassVar[Union[float, int]] = 0
+    bottom: ClassVar[Union[float, int]] = 0
+    left: ClassVar[Union[float, int]] = 0
+    right: ClassVar[Union[float, int]] = 0
+    x: ClassVar[Union[float, int]] = 0
+    y: ClassVar[Union[float, int]] = 0
 
 
 class ScaleMode(BaseModel):
-    x = 'height'
-    y = 'height'
+    x: ClassVar[str] = 'height'
+    y: ClassVar[str] = 'height'
 
 
 class Anchor(object):

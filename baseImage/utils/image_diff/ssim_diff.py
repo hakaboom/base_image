@@ -4,14 +4,18 @@ import numpy as np
 
 from baseImage import Image
 from baseImage.utils.ssim import SSIM
+from typing import Union, Optional, Callable
 
 
 class ImageDiff(object):
-    def __init__(self, resize=(500, 500)):
+    def __init__(self, win_size: int = 7, data_range: int = 255, sigma: Union[int, float] = 1.5,
+                 use_sample_covariance=True, resize=(500, 500), threshold: float = 0.90):
         """
         基于ssim的图片差异获取
         """
-        self.ssim = SSIM(resize=resize)
+        self.ssim = SSIM(resize=resize, win_size=win_size, sigma=sigma, data_range=data_range,
+                         use_sample_covariance=use_sample_covariance)
+        self.threshold = threshold
 
     @classmethod
     def _image_check(cls, im1, im2):
@@ -26,10 +30,21 @@ class ImageDiff(object):
 
         return im1, im2
 
-    def diff(self, im1: Image, im2: Image, debug: bool = False):
-        return self._diff(im1, im2, debug=debug)
+    def morphologyFun(self, threshData: Image):
+        # 闭运算
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+        kernel2 = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
 
-    def _diff(self, im1: Image, im2: Image, threshold: float = 0.70, debug: bool = False):
+        if threshData.place == cv2.cuda.GpuMat:
+            threshData = Image(threshData.data.download())
+        erosion = cv2.morphologyEx(threshData.data, cv2.MORPH_ERODE, kernel)
+        # erosion = cv2.morphologyEx(erosion, cv2.MORPH_OPEN, kernel2, iterations=2)
+        return erosion
+
+    def diff(self, im1: Image, im2: Image, debug: bool = False, threshold: Optional[float] = None):
+        return self._diff(im1, im2, debug=debug, threshold=(threshold or self.threshold))
+
+    def _diff(self, im1: Image, im2: Image, threshold, debug: bool = False, morphologyFun: Optional[Callable] = None):
         """
         ssim对比,并找到差异区域
 
@@ -54,12 +69,8 @@ class ImageDiff(object):
         # 二值化
         thresh = gary.threshold(code=cv2.THRESH_BINARY, thresh=int(255 * (1 - threshold)), maxval=255)
 
-        # 闭运算
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
-        if thresh.place == cv2.cuda.GpuMat:
-            thresh = Image(thresh.data.download())
-        erosion = cv2.morphologyEx(thresh.data, cv2.MORPH_CLOSE, kernel)
-        # erosion = cv2.morphologyEx(thresh.data, cv2.MORPH_OPEN, kernel, 1)
+        # 腐蚀膨胀等运算
+        erosion = morphologyFun and morphologyFun(thresh) or self.morphologyFun(thresh)
 
         # 寻找轮廓
         cnts, hierarchy = cv2.findContours(erosion, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)

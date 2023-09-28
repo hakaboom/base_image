@@ -13,7 +13,7 @@ def check_file(file_name):
 
 def check_image_valid(image):
     """检查图像是否有效"""
-    if image is not None and image.any():
+    if image is not None:
         return True
     else:
         return False

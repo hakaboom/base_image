@@ -9,13 +9,15 @@ from typing import Union, Optional, Callable
 
 class ImageDiff(object):
     def __init__(self, win_size: int = 7, data_range: int = 255, sigma: Union[int, float] = 1.5,
-                 use_sample_covariance=True, resize=(500, 500), threshold: float = 0.90):
+                 use_sample_covariance=True, resize=(500, 500), threshold: float = 0.90, morphologyCallback: Optional[Callable] = None):
         """
         基于ssim的图片差异获取
         """
         self.ssim = SSIM(resize=resize, win_size=win_size, sigma=sigma, data_range=data_range,
                          use_sample_covariance=use_sample_covariance)
         self.threshold = threshold
+        if morphologyCallback:
+            self.morphologyFun = morphologyCallback
 
     @classmethod
     def _image_check(cls, im1, im2):
@@ -30,7 +32,8 @@ class ImageDiff(object):
 
         return im1, im2
 
-    def morphologyFun(self, threshData: Image):
+    @staticmethod
+    def morphologyFun(threshData: Image):
         # 闭运算
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
         kernel2 = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))

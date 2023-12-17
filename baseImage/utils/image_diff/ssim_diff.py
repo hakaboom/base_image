@@ -79,29 +79,33 @@ class ImageDiff(object):
         cnts, hierarchy = cv2.findContours(erosion, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         cnts = list(cnts)
-        if im1.size != self.ssim.resize:
+        if im1.size[::-1] != self.ssim.resize:
             scale = np.array([im1.size[1]/self.ssim.resize[1], im1.size[0]/self.ssim.resize[0]])
             for index, cnt in enumerate(cnts):
                 cnts[index] = (cnt * scale).astype(np.int32)
 
         if debug:
-            print(f"相似度:{mssim}")
+            print(f"相似度:{mssim}, cnts={len(cnts)}")
+            im1.imshow("report")
+            im2.imshow('baseline')
             score.imshow('score')
+            gary.imshow("gary")
             thresh.imshow('thresh')
             Image(erosion).imshow('erosion')
+            cv2.waitKey(0)
 
-        result = []
-        for cnt in cnts:
-            M = cv2.moments(cnt)
-            if M['m00'] == 0.0:
-                continue
-            else:
-                result.append(cnt)
+        # result = []
+        # for cnt in cnts:
+        #     M = cv2.moments(cnt)
+        #     if M['m00'] == 0.0:
+        #         continue
+        #     else:
+        #         result.append(cnt)
 
         # for cnt in cnts:
         #     M = cv2.moments(cnt)
         #     print(M)
-        return result
+        return cnts
 
 """
 for c in cnts:
